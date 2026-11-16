@@ -68,12 +68,22 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
 
     try {
       setIsSubmitting(true);
-      const { walletClient, account } = await ensureAuthorizedWallet();
+      const { provider, account } = await ensureAuthorizedWallet();
 
-      const signature = await walletClient.signMessage({
-        account,
-        message: `AjoChain TapeSend TAP-10 Note\nType: ${msgType}\nTarget: ${effectiveContainer}\nPayload: ${messageText.trim()}`,
-      });
+      const messageToSign = `AjoChain TapeSend TAP-10 Note\nType: ${msgType}\nTarget: ${effectiveContainer}\nPayload: ${messageText.trim()}`;
+      const hexMsg = `0x${Array.from(new TextEncoder().encode(messageToSign)).map((b) => b.toString(16).padStart(2, '0')).join('')}`;
+      let signature = '';
+      try {
+        signature = await provider.request({
+          method: 'personal_sign',
+          params: [hexMsg, account],
+        });
+      } catch {
+        signature = await provider.request({
+          method: 'personal_sign',
+          params: [account, hexMsg],
+        });
+      }
 
       const senderLabel = address
         ? `#${address.substring(2, 8)}.lagos.tape`

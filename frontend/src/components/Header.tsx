@@ -21,18 +21,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenTapeOutDrawer }) => {
   const [showWalletModal, setShowWalletModal] = useState(false);
 
   const activeDeployments = getDeployment(chainId);
-  const { ensureAuthorizedWallet } = useWalletGuard();
+  const { ensureAuthorizedWallet, sendContractTx } = useWalletGuard();
 
   const handleMintTestUsdt = async () => {
     try {
       setIsMinting(true);
       setMintSuccess(false);
-      const { walletClient, account, chain } = await ensureAuthorizedWallet();
+      const { account } = await ensureAuthorizedWallet();
 
       // Mint 1,000 USDT (6 decimals = 1,000,000,000 units)
-      await walletClient.writeContract({
-        account,
-        chain,
+      await sendContractTx({
         address: activeDeployments.testUsdt as `0x${string}`,
         abi: Erc20Abi,
         functionName: 'mint',

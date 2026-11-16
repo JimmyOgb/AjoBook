@@ -31,7 +31,7 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const { ensureAuthorizedWallet } = useWalletGuard();
+  const { ensureAuthorizedWallet, sendContractTx } = useWalletGuard();
 
   if (!isOpen) return null;
 
@@ -40,7 +40,7 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
       setIsSubmitting(true);
       setErrorMsg(null);
 
-      const { walletClient, account, chain } = await ensureAuthorizedWallet();
+      const { account } = await ensureAuthorizedWallet();
 
       const contributionAmount = BigInt(Math.floor(parseFloat(contribution) * 1e6));
       const turnDuration = BigInt(cadenceSeconds);
@@ -64,9 +64,7 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
         ? (circuitId.trim() as `0x${string}`)
         : (activeDeployments.tapeOutCircuitId as `0x${string}` || '0x0000000000000000000000000000000000000000000000000000000000000000');
 
-      const tx = await walletClient.writeContract({
-        account,
-        chain,
+      const { txHash } = await sendContractTx({
         address: activeDeployments.factory as `0x${string}`,
         abi: AjoFactoryAbi,
         functionName: 'createCircle',
@@ -86,12 +84,11 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
         ],
       });
 
-      console.log('Circle created on X Layer with tx hash:', tx);
+      console.log('Circle created on X Layer with tx hash:', txHash);
 
       let createdCircleAddress: string = activeDeployments.seedCircle;
       if (publicClient) {
         try {
-          await publicClient.waitForTransactionReceipt({ hash: tx });
           const allCircles = (await publicClient.readContract({
             address: activeDeployments.factory as `0x${string}`,
             abi: AjoFactoryAbi,
@@ -101,7 +98,7 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
             createdCircleAddress = allCircles[allCircles.length - 1];
           }
         } catch (e) {
-          console.warn('Could not read receipt or allCircles:', e);
+          console.warn('Could not read allCircles:', e);
         }
       }
 

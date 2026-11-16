@@ -1,10 +1,19 @@
-import { useAccount, useConnect, useChainId } from 'wagmi';
-import { createWalletClient, custom } from 'viem';
+import { useAccount, useConnect, useChainId, usePublicClient } from 'wagmi';
+import { createWalletClient, custom, encodeFunctionData } from 'viem';
 import { xLayerTestnet } from '../config/chains';
+
+export interface SendContractTxParams {
+  address: `0x${string}`;
+  abi: any;
+  functionName: string;
+  args?: any[];
+  value?: bigint;
+}
 
 export function useWalletGuard() {
   const { address, isConnected, connector } = useAccount();
   const { connectAsync, connectors } = useConnect();
+  const publicClient = usePublicClient();
   const currentChainId = useChainId();
 
   const ensureAuthorizedWallet = async () => {
@@ -24,7 +33,7 @@ export function useWalletGuard() {
       activeConnector = preferred;
     }
 
-    // 2. Obtain exact EIP-1193 provider from active connector
+    // 2. Obtain exact EIP-1193 provider from active connector (never let secondary extensions hijack)
     let provider: any = null;
     if (activeConnector && typeof activeConnector.getProvider === 'function') {
       try {
@@ -107,7 +116,7 @@ export function useWalletGuard() {
       console.warn('Chain verification on provider warning:', chainErr);
     }
 
-    // 5. Construct dedicated Viem WalletClient bound directly to custom(provider)
+    // 5. Construct dedicated Viem WalletClient for standard client operations if needed
     const walletClient = createWalletClient({
       account: authorizedAccount,
       chain: xLayerTestnet,
@@ -122,9 +131,77 @@ export function useWalletGuard() {
     };
   };
 
+  /**
+   * Pure direct contract transaction executor:
+   * 1. Encodes calldata locally via encodeFunctionData (zero wallet capability queries)
+   * 2. Estimates gas via public X Layer RPC (never querying the browser extension)
+   * 3. Sends ONLY standard eth_sendTransaction directly to provider.request
+   * 4. Awaits confirmation via publicClient.waitForTransactionReceipt
+   */
+  const sendContractTx = async ({
+    address: to,
+    abi,
+    functionName,
+    args = [],
+    value,
+  }: SendContractTxParams): Promise<{ txHash: `0x${string}`; receipt?: any }> => {
+    const { provider, account: sender } = await ensureAuthorizedWallet();
+
+    // 1. Encode function call data locally
+    const data = encodeFunctionData({
+      abi,
+      functionName,
+      args,
+    });
+
+    // 2. Estimate gas against public X Layer Testnet RPC (fallback to 600,000 on estimate failure)
+    let estimatedGas = 350000n;
+    if (publicClient) {
+      try {
+        const est = await publicClient.estimateGas({
+          account: sender,
+          to,
+          data,
+          ...(value ? { value } : {}),
+        });
+        estimatedGas = (est * 125n) / 100n; // 25% safety buffer
+      } catch (estErr) {
+        console.warn('publicClient.estimateGas failed, using safe fallback:', estErr);
+        estimatedGas = 650000n;
+      }
+    }
+
+    // 3. Send pure eth_sendTransaction RPC directly to provider.request
+    const txHash = (await provider.request({
+      method: 'eth_sendTransaction',
+      params: [
+        {
+          from: sender,
+          to,
+          data,
+          gas: `0x${estimatedGas.toString(16)}`,
+          ...(value ? { value: `0x${value.toString(16)}` } : {}),
+        },
+      ],
+    })) as `0x${string}`;
+
+    // 4. Await transaction receipt via public client
+    let receipt: any = null;
+    if (publicClient) {
+      try {
+        receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+      } catch (receiptErr) {
+        console.warn('waitForTransactionReceipt warning:', receiptErr);
+      }
+    }
+
+    return { txHash, receipt };
+  };
+
   return {
     ensureAuthorizedWallet,
     requireReadyWallet: ensureAuthorizedWallet, // alias for backwards compatibility
+    sendContractTx,
     address,
     isConnected,
     currentChainId,
