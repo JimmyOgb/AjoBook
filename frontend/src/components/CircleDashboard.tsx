@@ -70,6 +70,7 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
 
   const [members, setMembers] = useState<MemberData[]>([]);
   const [userClaimable, setUserClaimable] = useState<number>(0);
+  const [escrowedPot, setEscrowedPot] = useState<number>(0);
   const [myMemberData, setMyMemberData] = useState<MemberData | null>(null);
 
   // UI state
@@ -153,6 +154,19 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
       setLateJoinOpen(lJoinOpen);
       setTapeOutCircuitId(cId);
       setTapeOutProcessor(cProc);
+
+      // Read live escrowed pot for current turn
+      try {
+        const escrowBal = (await publicClient.readContract({
+          address: cAddr,
+          abi: AjoCircleAbi,
+          functionName: 'turnCollected',
+          args: [cTurn],
+        })) as bigint;
+        setEscrowedPot(Number(escrowBal) / 1e6);
+      } catch {
+        setEscrowedPot(0);
+      }
 
       // Fetch member records
       const memberList: MemberData[] = [];
@@ -325,19 +339,30 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
     }
   };
 
-  const handleCloseTurn = async () => {
+  const handleReleasePayout = async () => {
     try {
       setIsSubmitting(true);
       setErrorNotice(null);
       await writeContractAsync({
         address: circleAddress as `0x${string}`,
         abi: AjoCircleAbi,
-        functionName: 'closeTurn',
+        functionName: 'releaseTurnPayout',
       });
-      setActionNotice(`Turn #${currentTurn} settled! Pot disbursed and advanced.`);
+      setActionNotice(`Turn #${currentTurn} scheduled pot disbursed to collector! Next turn timer started.`);
       await fetchCircleData();
     } catch (err: any) {
-      setErrorNotice(err?.shortMessage || err?.message || 'Failed to close turn');
+      // Fallback to closeTurn if contract was deployed with older ABI alias
+      try {
+        await writeContractAsync({
+          address: circleAddress as `0x${string}`,
+          abi: AjoCircleAbi,
+          functionName: 'closeTurn',
+        });
+        setActionNotice(`Turn #${currentTurn} settled! Pot disbursed and advanced.`);
+        await fetchCircleData();
+      } catch (err2: any) {
+        setErrorNotice(err2?.shortMessage || err2?.message || err?.shortMessage || err?.message || 'Failed to release payout');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -538,17 +563,31 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
             </div>
 
             {status === 'ACTIVE' && (
-              <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 min-w-[150px]">
-                <span className="text-[10px] uppercase font-bold text-amber-400 block mb-0.5 flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> Turn Deadline
-                </span>
-                <span className="text-xl font-black text-white font-mono">
-                  {secondsLeft > 0 ? formatCountdown(secondsLeft) : 'Expired'}
-                </span>
-                <span className="text-[10px] text-slate-500 block">
-                  {secondsLeft === 0 ? 'Ready to Close' : 'Remaining'}
-                </span>
-              </div>
+              <>
+                <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-emerald-500/30 min-w-[150px]">
+                  <span className="text-[10px] uppercase font-bold text-emerald-400 block mb-0.5 flex items-center gap-1">
+                    <Coins className="w-3 h-3" /> Escrowed in Contract
+                  </span>
+                  <span className="text-xl font-black text-emerald-300 font-mono">
+                    {escrowedPot} USDT
+                  </span>
+                  <span className="text-[10px] text-slate-500 block">
+                    Turn #{currentTurn} Pot in Vault
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 min-w-[150px]">
+                  <span className="text-[10px] uppercase font-bold text-amber-400 block mb-0.5 flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> Turn Deadline
+                  </span>
+                  <span className="text-xl font-black text-white font-mono">
+                    {secondsLeft > 0 ? formatCountdown(secondsLeft) : 'Expired'}
+                  </span>
+                  <span className="text-[10px] text-slate-500 block">
+                    {secondsLeft === 0 ? 'Ready to Disburse' : 'Remaining in Period'}
+                  </span>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -627,15 +666,54 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
         </div>
       )}
 
-      {/* Member Turn Contribution / Close Turn Actions */}
+      {/* Active Turn Scheduled Payout Bar (Visible to everyone) */}
+      {status === 'ACTIVE' && (
+        <div className="p-4 rounded-2xl bg-[#121824] border border-slate-800 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${secondsLeft === 0 ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                Turn #{currentTurn} Scheduled Payout ({turnDuration === 300 ? '5-Min Live Demo' : turnDuration === 86400 ? 'Daily' : turnDuration === 604800 ? 'Weekly' : 'Monthly'})
+              </h4>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {secondsLeft > 0 ? (
+                <>Contributions are held in contract escrow. Payout triggers automatically at the end of the period ({formatCountdown(secondsLeft)} remaining).</>
+              ) : (
+                <span className="text-amber-300 font-medium">Turn deadline expired! Ready to disburse {escrowedPot} USDT accumulated pot to collector.</span>
+              )}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {secondsLeft === 0 ? (
+              <button
+                onClick={handleReleasePayout}
+                disabled={isSubmitting}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/20 transition disabled:opacity-50 cursor-pointer animate-pulse"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>Release Scheduled Payout ({escrowedPot} USDT)</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-400 font-mono">
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                <span>Unlocks in {formatCountdown(secondsLeft)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Member Turn Contribution Actions */}
       {status === 'ACTIVE' && isMember && (
         <div className="p-4 rounded-2xl bg-[#121824] border border-slate-800 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h4 className="text-xs font-bold text-white">Your Payout Turn: #{myMemberData?.slot} ({myMemberData?.name})</h4>
             <p className="text-[11px] text-slate-400">
               {myMemberData?.paidCurrentTurn
-                ? `You have paid your ${contributionAmount} USDT contribution for Turn #${currentTurn}.`
-                : `Turn #${currentTurn} contribution of ${contributionAmount} USDT is due.`}
+                ? `You have paid your ${contributionAmount} USDT contribution. Funds are held in escrow for Turn #${currentTurn}.`
+                : `Turn #${currentTurn} contribution of ${contributionAmount} USDT is due for escrow.`}
             </p>
           </div>
 
@@ -644,20 +722,10 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
               <button
                 onClick={handleContribute}
                 disabled={isSubmitting}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white text-xs font-bold shadow-lg transition disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white text-xs font-bold shadow-lg transition disabled:opacity-50 cursor-pointer"
               >
                 <Coins className="w-4 h-4" />
-                <span>Pay {contributionAmount} USDT (Turn #{currentTurn})</span>
-              </button>
-            )}
-
-            {secondsLeft === 0 && (
-              <button
-                onClick={handleCloseTurn}
-                disabled={isSubmitting}
-                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-lg transition disabled:opacity-50"
-              >
-                Close Turn #{currentTurn} & Disburse
+                <span>Pay {contributionAmount} USDT to Escrow (Turn #{currentTurn})</span>
               </button>
             )}
           </div>

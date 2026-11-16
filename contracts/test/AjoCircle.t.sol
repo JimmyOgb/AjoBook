@@ -127,7 +127,7 @@ contract AjoCircleTest is Test {
         assertEq(circle.totalSlots(), 3);
     }
 
-    // ─── Turn Contribution & Immediate Payout ─────────────────────────────
+    // ─── Turn Contribution, Full-Period Escrow & Scheduled Payout ────────
     function test_TurnContributionAndPayout() public {
         _joinThreeMembers();
 
@@ -141,7 +141,18 @@ contract AjoCircleTest is Test {
         vm.prank(amaka);
         circle.contribute();
 
-        // Turn 1 completes immediately and disburses to Chidi (slot 1)
+        // 1. Contributions remain locked in escrow inside the contract before turnDeadline
+        assertEq(circle.escrowedBalance(), 300e6);
+        assertEq(circle.currentTurn(), 1);
+
+        // 2. Calling releaseTurnPayout early reverts with TurnNotExpired!
+        vm.expectRevert(AjoCircle.TurnNotExpired.selector);
+        circle.releaseTurnPayout();
+
+        // 3. Once turnDeadline has arrived, releaseTurnPayout() disburses to Chidi (slot 1)
+        vm.warp(circle.turnDeadline());
+        circle.releaseTurnPayout();
+
         uint256 netPayout = 300e6 - (300e6 * FEE_BPS / 10_000);
         assertEq(usdt.balanceOf(chidi), chidiBalBefore - CONTRIBUTION + netPayout);
         assertEq(circle.currentTurn(), 2);
@@ -151,13 +162,16 @@ contract AjoCircleTest is Test {
     function test_MissedTurnDeductedFromDeposit() public {
         _joinThreeMembers();
 
-        // Turn 1: everyone pays -> Chidi gets paid
+        // Turn 1: everyone pays -> warp to deadline -> release payout
         vm.prank(chidi);
         circle.contribute();
         vm.prank(ngozi);
         circle.contribute();
         vm.prank(amaka);
         circle.contribute();
+
+        vm.warp(circle.turnDeadline());
+        circle.releaseTurnPayout();
 
         assertEq(circle.currentTurn(), 2);
 
@@ -174,7 +188,7 @@ contract AjoCircleTest is Test {
         (,, uint256 amakaDepositBefore,) = circle.getMemberDetails(amaka);
         assertEq(amakaDepositBefore, CONTRIBUTION);
 
-        // Anyone calls closeTurn()
+        // Anyone calls closeTurn() / releaseTurnPayout()
         circle.closeTurn();
 
         // Amaka's deposit was deducted to cover her share
@@ -189,13 +203,16 @@ contract AjoCircleTest is Test {
     function test_LateJoinCatchUpDistribution() public {
         _joinThreeMembers();
 
-        // Turn 1: Chidi gets paid
+        // Turn 1: Chidi gets paid at scheduled deadline
         vm.prank(chidi);
         circle.contribute();
         vm.prank(ngozi);
         circle.contribute();
         vm.prank(amaka);
         circle.contribute();
+
+        vm.warp(circle.turnDeadline());
+        circle.releaseTurnPayout();
 
         // Circle is now on Turn 2 (completedTurns = 1)
         assertEq(circle.currentTurn(), 2);
@@ -234,6 +251,8 @@ contract AjoCircleTest is Test {
         circle.contribute();
         vm.prank(amaka);
         circle.contribute();
+        vm.warp(circle.turnDeadline());
+        circle.releaseTurnPayout();
 
         // Turn 2
         vm.prank(chidi);
@@ -242,6 +261,8 @@ contract AjoCircleTest is Test {
         circle.contribute();
         vm.prank(amaka);
         circle.contribute();
+        vm.warp(circle.turnDeadline());
+        circle.releaseTurnPayout();
 
         // Turn 3
         vm.prank(chidi);
@@ -250,6 +271,8 @@ contract AjoCircleTest is Test {
         circle.contribute();
         vm.prank(amaka);
         circle.contribute();
+        vm.warp(circle.turnDeadline());
+        circle.releaseTurnPayout();
 
         // All 3 turns completed!
         assertEq(uint256(circle.status()), uint256(AjoCircle.Status.COMPLETED));

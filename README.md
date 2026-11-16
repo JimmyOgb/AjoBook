@@ -10,8 +10,9 @@
 
 - 🌐 **Live Vercel Production dApp:** **[https://ajochain-mu.vercel.app](https://ajochain-mu.vercel.app)**
 - 💻 **GitHub Repository:** **[https://github.com/JimmyOgb/AjoChain](https://github.com/JimmyOgb/AjoChain)**
+- 🏭 **AjoFactory on OKLink:** **[`0xAD74798cDb9513d06c0060Bf6850a8080F024B0b`](https://www.oklink.com/x-layer-testnet/address/0xAD74798cDb9513d06c0060Bf6850a8080F024B0b)**
+- 🔗 **Seed AjoCircle on OKLink:** **[`0xEc454C6f3d5D68Ff310aBeC3b4a6A769aD4D3A6c`](https://www.oklink.com/x-layer-testnet/address/0xEc454C6f3d5D68Ff310aBeC3b4a6A769aD4D3A6c)**
 - 🔗 **Verified Live 5-Minute Demo Circle on OKLink:** **[`0x4c2d10851889cf992e4b6a8e12508dcdc11e1642`](https://www.oklink.com/x-layer-testnet/address/0x4c2d10851889cf992e4b6a8e12508dcdc11e1642)**
-- 🏭 **AjoFactory on OKLink:** **[`0x138AA4E744d55898D40184526d8Fec60bbd61452`](https://www.oklink.com/x-layer-testnet/address/0x138AA4E744d55898D40184526d8Fec60bbd61452)**
 
 ---
 
@@ -35,10 +36,13 @@ AjoChain mirrors the exact communal routine of an African market Ajo/Esusu exerc
 - Every exercise book generates an instant shareable invite URL (`https://ajochain-mu.vercel.app/?circle=0x...`) with a clean inline SVG QR code.
 - Anyone scanning or opening the link connects their OKX / Injected wallet, types their **own human name** into the book (e.g., *"Ada"*, *"Chidi"*, *"Ngozi"*), and joins in order (receiving the exact payout turn corresponding to their sign-up position).
 
-### Step 3 — Host Starts & One-Signature Turn Payments
+### Step 3 — Host Starts & Full-Period Escrowed Turn Payments
 - As soon as $\ge 2$ members sign the book, the host clicks **Start Circle** (or it starts automatically when full).
 - Each turn, each member pays their contribution with **one single signature**.
-- The exact instant the final member contributes, the smart contract **automatically disburses the entire net pot** to the scheduled collector for that turn and advances the deadline to the next turn with zero coordinator intervention.
+- **Full-Period Escrow:** Contributions are held in non-custodial contract escrow for the entire turn period (`turnDeadline = turnStartTime + turnDuration`). The accumulating pot is displayed live.
+- Once the scheduled period finishes (`block.timestamp >= turnDeadline`), anyone can call **Release Scheduled Payout** (`releaseTurnPayout` / `closeTurn`):
+  - Missing members with deposit coverage have their deposit automatically deducted into the pot.
+  - The entire escrowed pot is disbursed to the scheduled turn collector, and the next turn timer begins.
 
 ### Step 4 — Edge-Case Safeguards Built Directly Into the Book UI
 - 🛡️ **Deposits (1x Contribution Escrow):** Shows each member's locked 1-contribution deposit (`10 USDT` / `100 USDT`). If a member misses a turn, their deposit covers their share so the collector still receives the full pot on time. Unused deposits return automatically at the end of the circle.
@@ -87,10 +91,10 @@ All contracts are deployed live, verified, and operational on **X Layer Testnet 
 
 | Contract | Address on X Layer Testnet | OKLink Block Explorer |
 | :--- | :--- | :--- |
-| **AjoFactory** | `0x138AA4E744d55898D40184526d8Fec60bbd61452` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0x138AA4E744d55898D40184526d8Fec60bbd61452) |
+| **AjoFactory** (Upgraded Escrow Timed) | `0xAD74798cDb9513d06c0060Bf6850a8080F024B0b` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0xAD74798cDb9513d06c0060Bf6850a8080F024B0b) |
+| **Seed AjoCircle** (*Lagos Founders Ajo*) | `0xEc454C6f3d5D68Ff310aBeC3b4a6A769aD4D3A6c` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0xEc454C6f3d5D68Ff310aBeC3b4a6A769aD4D3A6c) |
+| **TestUSDT** (6-Dec Faucet) | `0xBA2F34E38056aFEc0ab39BD48a0688f4c3680840` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0xBA2F34E38056aFEc0ab39BD48a0688f4c3680840) |
 | **Verified Live Demo Circle** (*Live Verification Circle*) | `0x4c2d10851889cf992e4b6a8e12508dcdc11e1642` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0x4c2d10851889cf992e4b6a8e12508dcdc11e1642) |
-| **Seed AjoCircle** (*Lagos Founders Ajo*) | `0x20f4F33Ff40DC6dAA1B8DCeE8A0916e79608fB20` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0x20f4F33Ff40DC6dAA1B8DCeE8A0916e79608fB20) |
-| **TestUSDT** (6-Dec Faucet) | `0x923E34aCfa31b25F49fa9533484198dD12761fa6` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0x923E34aCfa31b25F49fa9533484198dD12761fa6) |
 
 ### Complete Live On-Chain Lifecycle Proofs (Ada, Chidi, Ngozi)
 

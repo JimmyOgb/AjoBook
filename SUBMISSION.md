@@ -27,10 +27,10 @@ All contracts are deployed live, verified, and operational on **X Layer Testnet*
 
 | Contract | Address on X Layer Testnet | OKLink Block Explorer |
 | :--- | :--- | :--- |
-| **AjoFactory** | `0x138AA4E744d55898D40184526d8Fec60bbd61452` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0x138AA4E744d55898D40184526d8Fec60bbd61452) |
+| **AjoFactory** (Upgraded Escrow Timed) | `0xAD74798cDb9513d06c0060Bf6850a8080F024B0b` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0xAD74798cDb9513d06c0060Bf6850a8080F024B0b) |
+| **Seed AjoCircle**<br/>*(Lagos Founders Ajo)* | `0xEc454C6f3d5D68Ff310aBeC3b4a6A769aD4D3A6c` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0xEc454C6f3d5D68Ff310aBeC3b4a6A769aD4D3A6c) |
+| **TestUSDT** (6-Dec Faucet) | `0xBA2F34E38056aFEc0ab39BD48a0688f4c3680840` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0xBA2F34E38056aFEc0ab39BD48a0688f4c3680840) |
 | **Verified Live Demo Circle**<br/>*(Live Verification Circle)* | `0x4c2d10851889cf992e4b6a8e12508dcdc11e1642` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0x4c2d10851889cf992e4b6a8e12508dcdc11e1642) |
-| **Seed AjoCircle**<br/>*(Lagos Founders Ajo)* | `0x20f4F33Ff40DC6dAA1B8DCeE8A0916e79608fB20` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0x20f4F33Ff40DC6dAA1B8DCeE8A0916e79608fB20) |
-| **TestUSDT** (6-Dec Faucet) | `0x923E34aCfa31b25F49fa9533484198dD12761fa6` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0x923E34aCfa31b25F49fa9533484198dD12761fa6) |
 
 ### 2.2 Complete Live On-Chain Lifecycle Proofs (Ada, Chidi, Ngozi)
 

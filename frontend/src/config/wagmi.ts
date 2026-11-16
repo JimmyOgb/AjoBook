@@ -6,16 +6,7 @@ export const config = createConfig({
   // X Layer Testnet (1952) is the primary default chain for all initial loads and unauthenticated reads
   chains: [xLayerTestnet, xLayerMainnet, localhostChain],
   connectors: [
-    injected({
-      target() {
-        return {
-          id: 'okxWallet',
-          name: 'OKX Wallet',
-          provider: (typeof window !== 'undefined' ? (window as any).okxwallet : undefined) || 
-                    (typeof window !== 'undefined' ? (window as any).ethereum : undefined),
-        };
-      },
-    }),
+    injected(),
   ],
   transports: {
     [xLayerTestnet.id]: http('https://testrpc.xlayer.tech'),

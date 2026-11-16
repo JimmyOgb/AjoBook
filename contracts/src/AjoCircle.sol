@@ -41,6 +41,7 @@ contract AjoCircle is ReentrancyGuard {
     // ─── State ───────────────────────────────────────────────────────────
     Status  public status;
     uint256 public currentTurn;                   // 1-indexed once ACTIVE
+    uint256 public turnStartTime;                 // timestamp when current turn began
     uint256 public turnDeadline;                  // timestamp ceiling for current turn
     uint256 public memberCount;
     uint256 public totalSlots;                    // equals memberCount or expands on late-join
@@ -182,12 +183,14 @@ contract AjoCircle is ReentrancyGuard {
     function _start() internal {
         status = Status.ACTIVE;
         currentTurn = 1;
+        turnStartTime = block.timestamp;
         turnDeadline = block.timestamp + turnDuration;
         emit CircleStarted(memberCount, turnDeadline);
     }
 
     // ─── Contribute (Active Turn) ─────────────────────────────────────────
     /// @notice Contribute contributionAmount for current active turn.
+    ///         Held in escrow inside this contract for the full scheduled turn period.
     function contribute() external nonReentrant {
         if (status != Status.ACTIVE) revert CircleNotActive();
         if (!members[msg.sender].exists) revert MemberNotFound();
@@ -199,21 +202,25 @@ contract AjoCircle is ReentrancyGuard {
         token.safeTransferFrom(msg.sender, address(this), contributionAmount);
 
         emit TurnPaid(msg.sender, currentTurn, contributionAmount);
-
-        // If everyone has paid for current turn, auto-payout immediately
-        if (_allPaid(currentTurn)) {
-            _disburseTurn(currentTurn);
-        }
     }
 
-    // ─── Close Turn (Deadline Fallback & Slashing) ─────────────────────────
-    /// @notice When turn deadline expires, anyone can close the turn.
-    ///         Unpaid members with deposit have their deposit deducted.
-    ///         Unpaid members without deposit are marked MISSED.
-    ///         Collected funds are immediately disbursed to turn recipient.
+    // ─── Release Scheduled Turn Payout (End of Period) ───────────────────
+    /// @notice Once turnDeadline arrives (end of scheduled period), anyone can trigger payout.
+    ///         Unpaid members with deposit have deposit deducted to cover the turn.
+    ///         Unpaid members without deposit are marked MISSED in the book.
+    ///         The accumulated escrowed pot is disbursed to the turn recipient.
+    function releaseTurnPayout() external nonReentrant {
+        _settleAndDisburse();
+    }
+
+    /// @notice Backward-compatible alias for releaseTurnPayout().
     function closeTurn() external nonReentrant {
+        _settleAndDisburse();
+    }
+
+    function _settleAndDisburse() internal {
         if (status != Status.ACTIVE) revert CircleNotActive();
-        if (block.timestamp <= turnDeadline) revert TurnNotExpired();
+        if (block.timestamp < turnDeadline) revert TurnNotExpired();
         if (turnDisbursed[currentTurn]) revert TurnAlreadyDisbursed();
 
         uint256 turn = currentTurn;
@@ -315,6 +322,7 @@ contract AjoCircle is ReentrancyGuard {
             emit CircleCompleted();
         } else {
             currentTurn = turn + 1;
+            turnStartTime = block.timestamp;
             turnDeadline = block.timestamp + turnDuration;
         }
     }
@@ -354,13 +362,23 @@ contract AjoCircle is ReentrancyGuard {
     }
 
     // ─── View Helpers (Exercise Book Ledger) ──────────────────────────────
-    function _allPaid(uint256 turn) internal view returns (bool) {
+    /// @notice Returns the live escrowed pot accumulating for current turn.
+    function escrowedBalance() external view returns (uint256) {
+        return turnCollected[currentTurn];
+    }
+
+    /// @notice Check if all members have paid their contributions for a turn.
+    function allPaid(uint256 turn) public view returns (bool) {
         for (uint256 i = 0; i < memberAddresses.length; i++) {
             if (!hasContributed[turn][memberAddresses[i]]) {
                 return false;
             }
         }
         return true;
+    }
+
+    function _allPaid(uint256 turn) internal view returns (bool) {
+        return allPaid(turn);
     }
 
     function _safeTransferWithPullFallback(address to, uint256 amount) internal {

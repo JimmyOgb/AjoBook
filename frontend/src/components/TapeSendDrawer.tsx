@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useChainId } from 'wagmi';
-import { X, Send, ShieldCheck, Cpu, Lock, CheckCircle2, Copy, AlertCircle } from 'lucide-react';
+import { useChainId, useAccount, useSignMessage } from 'wagmi';
+import { X, ShieldCheck, Cpu, Lock, CheckCircle2, Copy, AlertCircle, PenTool } from 'lucide-react';
 import { Tap10Message, createTap10Envelope, verifyDeWebIntegrityLive } from '../tapeout/tapekit';
 import { getDeployment } from '../config/deployments';
 
@@ -18,14 +18,17 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
   circuitId,
 }) => {
   const chainId = useChainId();
+  const { address, isConnected } = useAccount();
+  const { signMessageAsync, isPending: isSigning } = useSignMessage();
   const activeDeployments = getDeployment(chainId);
   const effectiveContainer = targetContainer || activeDeployments.tapeOutContainer;
   const effectiveCircuitId = circuitId || activeDeployments.tapeOutCircuitId;
 
-  const [recipient, setRecipient] = useState(effectiveContainer);
   const [messageText, setMessageText] = useState('');
   const [msgType, setMsgType] = useState<Tap10Message['type']>('MEMO');
   const [copied, setCopied] = useState(false);
+  const [copiedContainer, setCopiedContainer] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 100% Zero-Mock: Start with empty array or read from localStorage for this session
   const [messages, setMessages] = useState<Tap10Message[]>(() => {
@@ -37,7 +40,7 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
     }
   });
 
-  // Real live dual RPC verification state
+  // Real live dual RPC verification state (pure fetch, no wallet RPC)
   const [rpcVerification, setRpcVerification] = useState<{
     verified: boolean;
     hash: string;
@@ -57,29 +60,55 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  // Trigger standard personal_sign ONLY when user explicitly clicks "Sign & Post Note"
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageText.trim()) return;
+    if (!messageText.trim() || !isConnected) return;
 
-    const newMsg = createTap10Envelope(
-      '#local-container.tape',
-      recipient || effectiveContainer,
-      msgType,
-      messageText.trim()
-    );
-
-    const updated = [newMsg, ...messages];
-    setMessages(updated);
     try {
-      localStorage.setItem('ajochain_tap10_messages', JSON.stringify(updated));
-    } catch {}
-    setMessageText('');
+      setIsSubmitting(true);
+      const signature = await signMessageAsync({
+        message: `AjoChain TapeSend TAP-10 Note\nType: ${msgType}\nTarget: ${effectiveContainer}\nPayload: ${messageText.trim()}`,
+      });
+
+      const senderLabel = address
+        ? `#${address.substring(2, 8)}.lagos.tape`
+        : '#local-container.tape';
+
+      const newMsg = createTap10Envelope(
+        senderLabel,
+        effectiveContainer,
+        msgType,
+        messageText.trim()
+      );
+
+      if (signature) {
+        newMsg.txHash = signature.substring(0, 18) + '...';
+      }
+
+      const updated = [newMsg, ...messages];
+      setMessages(updated);
+      try {
+        localStorage.setItem('ajochain_tap10_messages', JSON.stringify(updated));
+      } catch {}
+      setMessageText('');
+    } catch (err) {
+      console.warn('User rejected signature or signing failed:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const copySha256 = () => {
     navigator.clipboard.writeText(effectiveCircuitId);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const copyContainerAddr = () => {
+    navigator.clipboard.writeText(effectiveContainer);
+    setCopiedContainer(true);
+    setTimeout(() => setCopiedContainer(false), 2000);
   };
 
   return (
@@ -153,9 +182,19 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
               {effectiveCircuitId || '0x89c7d413eaf725cf920a6122d64a098862f6b3b55239a5ecbcda6d6a8b1a3299'}
             </div>
 
-            <div className="flex justify-between pt-1 text-[10px] text-slate-400">
+            <div className="flex justify-between items-center pt-1 text-[10px] text-slate-400">
               <span>Container:</span>
-              <span className="text-indigo-400">{effectiveContainer}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-indigo-400 font-mono select-all truncate max-w-[220px]">{effectiveContainer}</span>
+                <button
+                  type="button"
+                  onClick={copyContainerAddr}
+                  className="text-slate-400 hover:text-white"
+                  title="Copy Container Address"
+                >
+                  {copiedContainer ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -191,7 +230,7 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
                 <div className="pt-1.5 border-t border-slate-800/60 flex items-center justify-between text-[9px] text-slate-500 font-mono">
                   <div className="flex items-center gap-1 text-slate-400 truncate max-w-[240px]">
                     <Lock className="w-2.5 h-2.5 text-emerald-500 flex-shrink-0" />
-                    <span className="truncate">{msg.encryptedPayload}</span>
+                    <span className="truncate">{msg.txHash ? `Sig: ${msg.txHash}` : msg.encryptedPayload}</span>
                   </div>
                   <span className="text-blue-400 font-sans uppercase font-bold text-[8px] px-1.5 py-0.5 rounded bg-blue-500/10">
                     {msg.type}
@@ -206,13 +245,17 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
         <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-800 bg-[#121824] space-y-2.5">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[10px] text-slate-400 mb-0.5">Recipient Container</label>
-              <input
-                type="text"
-                value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
-              />
+              <label className="block text-[10px] text-slate-400 mb-0.5">Target Container (Read-Only)</label>
+              <div className="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-[11px] text-indigo-300 font-mono">
+                <span className="truncate">{effectiveContainer}</span>
+                <button
+                  type="button"
+                  onClick={copyContainerAddr}
+                  className="text-slate-400 hover:text-white flex-shrink-0 ml-1"
+                >
+                  {copiedContainer ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-[10px] text-slate-400 mb-0.5">Payload Type</label>
@@ -229,20 +272,28 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="space-y-2">
             <input
               type="text"
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
-              placeholder="Send real TAP-10 container notice..."
-              className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              placeholder="Type encrypted TAP-10 container note..."
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
             />
-            <button
-              type="submit"
-              className="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center justify-center shadow-lg shadow-indigo-600/20"
-            >
-              <Send className="w-3.5 h-3.5" />
-            </button>
+            {isConnected ? (
+              <button
+                type="submit"
+                disabled={!messageText.trim() || isSubmitting || isSigning}
+                className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 disabled:opacity-50 cursor-pointer"
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                <span>{isSigning ? 'Signing Note...' : 'Sign & Post Note'}</span>
+              </button>
+            ) : (
+              <div className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-center text-xs text-slate-400">
+                Connect wallet to sign and post TAP-10 notes
+              </div>
+            )}
           </div>
         </form>
 
