@@ -1,0 +1,22 @@
+# Environment & Secrets
+.env
+*.pem
+*.key
+
+# Node & Frontend
+node_modules/
+.npm/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Foundry & Contracts
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.bak

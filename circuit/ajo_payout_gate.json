@@ -1,0 +1,95 @@
+{
+  "name": "AjoPayoutGate",
+  "version": "1.0.0",
+  "standard": "TAPEOUT-CIRCUIT-V1",
+  "target": "X Layer (ChainID: 196 / 1952)",
+  "description": "Deterministic NAND/LATCH netlist circuit for AjoChain payout verification and defaulter slash eligibility gate.",
+  "inputs": [
+    { "name": "allMembersPaid", "type": "bool", "description": "1 if round contributions == maxMembers, else 0" },
+    { "name": "roundAlreadyDisbursed", "type": "bool", "description": "1 if payout for current round was already emitted" },
+    { "name": "roundActive", "type": "bool", "description": "1 if circle status == ACTIVE, else 0" },
+    { "name": "deadlinePassed", "type": "bool", "description": "1 if block.timestamp > roundDeadline" },
+    { "name": "memberPaid", "type": "bool", "description": "1 if candidate member contributed in current round, else 0" }
+  ],
+  "outputs": [
+    { "name": "releasePayout", "type": "bool", "description": "1 if payout should be disbursed immediately" },
+    { "name": "slashRequired", "type": "bool", "description": "1 if candidate member must be slashed from collateral" }
+  ],
+  "gates": [
+    {
+      "id": "G0_NOT_DISBURSED",
+      "type": "NAND",
+      "in": ["roundAlreadyDisbursed", "roundAlreadyDisbursed"],
+      "out": "notDisbursed"
+    },
+    {
+      "id": "G1_PAID_AND_NOT_DISBURSED_NAND",
+      "type": "NAND",
+      "in": ["allMembersPaid", "notDisbursed"],
+      "out": "nand1"
+    },
+    {
+      "id": "G2_PAID_AND_NOT_DISBURSED",
+      "type": "NAND",
+      "in": ["nand1", "nand1"],
+      "out": "paidAndNotDisbursed"
+    },
+    {
+      "id": "G3_RELEASE_PAYOUT_NAND",
+      "type": "NAND",
+      "in": ["paidAndNotDisbursed", "roundActive"],
+      "out": "nandRelease"
+    },
+    {
+      "id": "G4_RELEASE_PAYOUT",
+      "type": "NAND",
+      "in": ["nandRelease", "nandRelease"],
+      "out": "releasePayout"
+    },
+    {
+      "id": "G5_NOT_MEMBER_PAID",
+      "type": "NAND",
+      "in": ["memberPaid", "memberPaid"],
+      "out": "memberUnpaid"
+    },
+    {
+      "id": "G6_DEADLINE_AND_UNPAID_NAND",
+      "type": "NAND",
+      "in": ["deadlinePassed", "memberUnpaid"],
+      "out": "nandDeadlineUnpaid"
+    },
+    {
+      "id": "G7_DEADLINE_AND_UNPAID",
+      "type": "NAND",
+      "in": ["nandDeadlineUnpaid", "nandDeadlineUnpaid"],
+      "out": "deadlineAndUnpaid"
+    },
+    {
+      "id": "G8_SLASH_REQUIRED_NAND",
+      "type": "NAND",
+      "in": ["deadlineAndUnpaid", "roundActive"],
+      "out": "nandSlash"
+    },
+    {
+      "id": "G9_SLASH_REQUIRED",
+      "type": "NAND",
+      "in": ["nandSlash", "nandSlash"],
+      "out": "slashRequired"
+    },
+    {
+      "id": "M0_PAYOUT_LATCH",
+      "type": "LATCH",
+      "set": "releasePayout",
+      "reset": "G0_NOT_DISBURSED",
+      "stateOut": "disbursedStateLatch"
+    }
+  ],
+  "checksum": "0x89c7d413eaf725cf920a6122d64a098862f6b3b55239a5ecbcda6d6a8b1a3299",
+  "metadata": {
+    "compiler": "TapeOut Netlist Compiler v2.4.0",
+    "erc1155Standard": "NAND + LATCH Primitive Gate Tokens",
+    "circuitNftStandard": "ERC-721",
+    "containerStandard": "ERC-6551 Token Bound Account",
+    "verificationMethod": "Dual-RPC SHA-256 byte verification on X Layer (Chain ID: 196 / 1952)"
+  }
+}
