@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useChainId } from 'wagmi';
 import { X, Send, ShieldCheck, Cpu, Lock, CheckCircle2, Copy, AlertCircle } from 'lucide-react';
 import { Tap10Message, createTap10Envelope, verifyDeWebIntegrityLive } from '../tapeout/tapekit';
-import deployments from '../config/deployments.json';
+import { getDeployment } from '../config/deployments';
 
 interface TapeSendDrawerProps {
   isOpen: boolean;
@@ -14,11 +14,15 @@ interface TapeSendDrawerProps {
 export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
   isOpen,
   onClose,
-  targetContainer = deployments.tapeOutContainer,
-  circuitId = deployments.tapeOutCircuitId,
+  targetContainer,
+  circuitId,
 }) => {
   const chainId = useChainId();
-  const [recipient, setRecipient] = useState(targetContainer);
+  const activeDeployments = getDeployment(chainId);
+  const effectiveContainer = targetContainer || activeDeployments.tapeOutContainer;
+  const effectiveCircuitId = circuitId || activeDeployments.tapeOutCircuitId;
+
+  const [recipient, setRecipient] = useState(effectiveContainer);
   const [messageText, setMessageText] = useState('');
   const [msgType, setMsgType] = useState<Tap10Message['type']>('MEMO');
   const [copied, setCopied] = useState(false);
@@ -44,12 +48,12 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
   useEffect(() => {
     if (isOpen) {
       setIsValidating(true);
-      verifyDeWebIntegrityLive(chainId, circuitId)
+      verifyDeWebIntegrityLive(chainId, effectiveCircuitId)
         .then((res) => setRpcVerification(res))
         .catch(console.error)
         .finally(() => setIsValidating(false));
     }
-  }, [isOpen, chainId, circuitId]);
+  }, [isOpen, chainId, effectiveCircuitId]);
 
   if (!isOpen) return null;
 
@@ -59,7 +63,7 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
 
     const newMsg = createTap10Envelope(
       '#local-container.tape',
-      recipient || deployments.tapeOutContainer,
+      recipient || effectiveContainer,
       msgType,
       messageText.trim()
     );
@@ -73,7 +77,7 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
   };
 
   const copySha256 = () => {
-    navigator.clipboard.writeText(circuitId);
+    navigator.clipboard.writeText(effectiveCircuitId);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -146,12 +150,12 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
               </button>
             </div>
             <div className="text-slate-200 truncate font-mono text-[10px]">
-              {circuitId || '0x89c7d413eaf725cf920a6122d64a098862f6b3b55239a5ecbcda6d6a8b1a3299'}
+              {effectiveCircuitId || '0x89c7d413eaf725cf920a6122d64a098862f6b3b55239a5ecbcda6d6a8b1a3299'}
             </div>
 
             <div className="flex justify-between pt-1 text-[10px] text-slate-400">
               <span>Container:</span>
-              <span className="text-indigo-400">{targetContainer}</span>
+              <span className="text-indigo-400">{effectiveContainer}</span>
             </div>
           </div>
         </div>

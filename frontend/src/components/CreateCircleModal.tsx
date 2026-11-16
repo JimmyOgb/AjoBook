@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useAccount, useWriteContract } from 'wagmi';
-import { X, Shield, Cpu, ArrowRight, ArrowLeft, Sparkles, Clock, UserCheck } from 'lucide-react';
+import { useAccount, useWriteContract, useChainId, usePublicClient, useSwitchChain } from 'wagmi';
+import { X, Shield, Cpu, ArrowRight, ArrowLeft, Sparkles, Clock, UserCheck, AlertTriangle } from 'lucide-react';
 import { AjoFactoryAbi } from '../contracts/abis';
-import deployments from '../config/deployments.json';
+import { getDeployment } from '../config/deployments';
 
 interface CreateCircleModalProps {
   isOpen: boolean;
@@ -12,6 +12,10 @@ interface CreateCircleModalProps {
 
 export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, onClose, onCreated }) => {
   const { address } = useAccount();
+  const chainId = useChainId();
+  const publicClient = usePublicClient();
+  const { switchChain, isPending: isSwitching } = useSwitchChain();
+  const activeDeployments = getDeployment(chainId);
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Form State
@@ -21,9 +25,9 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
   const [cadenceSeconds, setCadenceSeconds] = useState('300'); // 5 mins demo by default
   const [maxMembers, setMaxMembers] = useState('4');
   const [requireDeposit, setRequireDeposit] = useState(true);
-  const [circuitId, setCircuitId] = useState(deployments.tapeOutCircuitId);
+  const [circuitId, setCircuitId] = useState<string>(activeDeployments.tapeOutCircuitId);
   const [processor, setProcessor] = useState('LAGOS_ARM');
-  const [containerAddr, setContainerAddr] = useState(deployments.tapeOutContainer);
+  const [containerAddr, setContainerAddr] = useState<string>(activeDeployments.tapeOutContainer);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -49,13 +53,13 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
       const processorBytes32 = ('0x' + Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')) as `0x${string}`;
 
       const tx = await writeContractAsync({
-        address: deployments.factory as `0x${string}`,
+        address: activeDeployments.factory as `0x${string}`,
         abi: AjoFactoryAbi,
         functionName: 'createCircle',
         args: [
           circleName,
           hostName,
-          deployments.usdt as `0x${string}`,
+          activeDeployments.usdt as `0x${string}`,
           contributionAmount,
           turnDuration,
           membersCount,
@@ -69,7 +73,25 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
       });
 
       console.log('Circle created on X Layer:', tx);
-      onCreated(deployments.seedCircle);
+
+      let createdCircleAddress: string = activeDeployments.seedCircle;
+      if (publicClient) {
+        try {
+          await publicClient.waitForTransactionReceipt({ hash: tx });
+          const allCircles = (await publicClient.readContract({
+            address: activeDeployments.factory as `0x${string}`,
+            abi: AjoFactoryAbi,
+            functionName: 'getAllCircles',
+          })) as string[];
+          if (allCircles && allCircles.length > 0) {
+            createdCircleAddress = allCircles[allCircles.length - 1];
+          }
+        } catch (e) {
+          console.warn('Could not read receipt or allCircles:', e);
+        }
+      }
+
+      onCreated(createdCircleAddress);
       onClose();
     } catch (err: any) {
       console.error('Failed to create circle:', err);
@@ -105,6 +127,24 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Chain Check Banner */}
+        {chainId !== 1952 && chainId !== 31337 && (
+          <div className="mx-6 mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <span>Contracts are on X Layer Testnet (1952)</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => switchChain({ chainId: 1952 })}
+              disabled={isSwitching}
+              className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs transition cursor-pointer"
+            >
+              {isSwitching ? 'Switching...' : 'Switch Network'}
+            </button>
+          </div>
+        )}
 
         {/* Modal Body */}
         <div className="p-6 space-y-4">

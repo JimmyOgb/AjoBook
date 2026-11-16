@@ -1,9 +1,10 @@
 import { createConfig, http } from 'wagmi';
 import { injected } from 'wagmi/connectors';
-import { xLayerMainnet, xLayerTestnet, localhostChain } from './chains';
+import { xLayerTestnet, xLayerMainnet, localhostChain } from './chains';
 
 export const config = createConfig({
-  chains: [xLayerMainnet, xLayerTestnet, localhostChain],
+  // X Layer Testnet (1952) is the primary default chain for all initial loads and unauthenticated reads
+  chains: [xLayerTestnet, xLayerMainnet, localhostChain],
   connectors: [
     injected({
       target() {
@@ -17,8 +18,8 @@ export const config = createConfig({
     }),
   ],
   transports: {
-    [xLayerMainnet.id]: http('https://rpc.xlayer.tech'),
     [xLayerTestnet.id]: http('https://testrpc.xlayer.tech'),
+    [xLayerMainnet.id]: http('https://rpc.xlayer.tech'),
     [localhostChain.id]: http('http://127.0.0.1:8545'),
   },
 });

@@ -58,14 +58,15 @@ However, the traditional informal model is crippled by two fatal vulnerabilities
 1. **The Runaway Organizer (Coordinator Fraud):** The human collector frequently absconds with the pot, delays payouts, or charges predatory informal "handling fees" (often 5%–10%).
 2. **Early-Slot Defaulters:** Members who draw early turns (Round 1 or 2) frequently disappear or delay contributions in later rounds, leaving later members stranded with unrecoverable losses.
 
-### How AjoChain Solves It
+### How AjoChain Solves It (The On-Chain Exercise Book)
+- **One Exercise Book. Zero Collector Pockets:** AjoChain keeps the Ajo / Esusu circle exactly as people know it—except the book is an immutable smart contract on X Layer. Every payment is written where everyone can read it, and the contract pays the pot out itself. Nobody holds the money.
 - **Mathematical Zero-Custody Escrow:** Circle vaults are deployed with **NO** `owner`, `admin`, `pause`, `upgrade`, or manual `withdraw` methods. Once initialized, funds move exclusively via deterministic round distributions or verified slashing.
-- **Dynamic Collateral Scaling:** To join Slot $s$ in an $N$-member circle with contribution $C$, a member must deposit:
-  $$\text{Required Collateral} = (N - s) \times C$$
-  - **Slot 1** (first payout) locks $(N-1) \times C$ collateral.
-  - **Last Slot** requires **0 USDT collateral**, allowing liquidity-constrained savers to participate with zero upfront capital.
-- **Automated Defaulter Slashing:** If a member fails to contribute before the round deadline, anyone can trigger `slashDefaulter()`. The missing contribution is automatically pulled from their locked collateral directly into the pot, ensuring subsequent payouts are never delayed.
-- **Full Collateral Return:** Upon completion of all rounds, honest members unlock and withdraw 100% of their collateral.
+- **1x Flat Security Deposit:** To join a circle, members deposit a 1x contribution security deposit. If a member misses a contribution before the round deadline, anyone can click `Close Turn`. The missing contribution is pulled from their locked deposit, their entry in the book is marked `MISSED`, and the collector still receives the full pot on time.
+- **Fair Late-Join Catch-Up:** Newcomers can join an active running circle at the end of the order by paying a catch-up balance:
+  $$\text{Catch-Up} = (T - 1) \times \text{Contribution}$$
+  The contract immediately distributes $1 \times \text{Contribution}$ into the `claimableBalance` vault of every past collector ($1 \dots T-1$). No funds are ever stuck.
+- **Full Deposit Refund:** Upon completion of all turns, honest members withdraw 100% of their remaining deposit.
+- **Live Demo Cadence:** Supports 5-minute turns (`300s`) for instant live judge evaluations, plus Daily, Weekly, and Monthly modes.
 
 ---
 

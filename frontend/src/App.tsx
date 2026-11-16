@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { usePublicClient } from 'wagmi';
+import { usePublicClient, useChainId, useSwitchChain } from 'wagmi';
 import { Header } from './components/Header';
 import { CircleCard, CircleData } from './components/CircleCard';
 import { CircleDashboard } from './components/CircleDashboard';
 import { CreateCircleModal } from './components/CreateCircleModal';
 import { TapeSendDrawer } from './components/TapeSendDrawer';
-import { Plus, Shield, Cpu, Sparkles, BookOpen, RefreshCw } from 'lucide-react';
+import { Plus, Shield, Cpu, Sparkles, BookOpen, RefreshCw, AlertTriangle, ArrowRight } from 'lucide-react';
 import { AjoFactoryAbi, AjoCircleAbi } from './contracts/abis';
-import deployments from './config/deployments.json';
+import { getDeployment } from './config/deployments';
 
 export const App: React.FC = () => {
   const publicClient = usePublicClient();
+  const chainId = useChainId();
+  const { switchChain, isPending: isSwitching } = useSwitchChain();
+
   const [selectedCircleAddress, setSelectedCircleAddress] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isTapeSendOpen, setIsTapeSendOpen] = useState(false);
@@ -19,6 +22,8 @@ export const App: React.FC = () => {
   // 100% Zero-Mock: State populated purely from on-chain RPC reads
   const [circles, setCircles] = useState<CircleData[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isWrongNetwork, setIsWrongNetwork] = useState<boolean>(false);
+  const [wrongNetworkName, setWrongNetworkName] = useState<string>('');
 
   // Check URL query param ?circle=0x...
   useEffect(() => {
@@ -31,14 +36,38 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Fetch real on-chain circles from AjoFactory
+  // Fetch real on-chain circles from AjoFactory with network-aware verification
   const fetchAllCirclesFromChain = async () => {
     if (!publicClient) return;
     try {
       setIsLoading(true);
-      const factoryAddr = deployments.factory as `0x${string}`;
+      const activeChainId = publicClient.chain?.id || chainId || 1952;
+      const activeDeployment = getDeployment(activeChainId);
+      const factoryAddr = activeDeployment.factory;
 
-      // Call getAllCircles on factory
+      // Detect chain mismatch before calling contracts
+      if (activeChainId !== 1952 && activeChainId !== 31337) {
+        setIsWrongNetwork(true);
+        setWrongNetworkName(activeChainId === 196 ? 'X Layer Mainnet (196)' : `Chain ID ${activeChainId}`);
+        setCircles([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if factory contract bytecode exists to prevent ContractFunctionZeroDataError
+      const bytecode = await publicClient.getBytecode({ address: factoryAddr });
+      if (!bytecode || bytecode === '0x') {
+        console.warn(`No contract bytecode at factory address ${factoryAddr} on chain ${activeChainId}`);
+        setIsWrongNetwork(true);
+        setWrongNetworkName(`Chain ID ${activeChainId}`);
+        setCircles([]);
+        setIsLoading(false);
+        return;
+      }
+
+      setIsWrongNetwork(false);
+
+      // Safe to call getAllCircles on factory
       const allCircleAddrs = (await publicClient.readContract({
         address: factoryAddr,
         abi: AjoFactoryAbi,
@@ -48,7 +77,7 @@ export const App: React.FC = () => {
       // Fallback: If factory list is empty (e.g. freshly deployed before any created), include seedCircle
       const uniqueAddrs = Array.from(
         new Set(
-          [deployments.seedCircle, ...(allCircleAddrs || [])].filter(
+          [activeDeployment.seedCircle, ...(allCircleAddrs || [])].filter(
             (a) => a && a !== '0x0000000000000000000000000000000000000000'
           )
         )
@@ -58,6 +87,9 @@ export const App: React.FC = () => {
 
       for (const cAddr of uniqueAddrs) {
         try {
+          const cBytecode = await publicClient.getBytecode({ address: cAddr });
+          if (!cBytecode || cBytecode === '0x') continue;
+
           const [
             name,
             hostName,
@@ -112,7 +144,7 @@ export const App: React.FC = () => {
     fetchAllCirclesFromChain();
     const interval = setInterval(fetchAllCirclesFromChain, 12000);
     return () => clearInterval(interval);
-  }, [publicClient]);
+  }, [publicClient, chainId]);
 
   const handleCircleCreated = (newCircleAddress: string) => {
     fetchAllCirclesFromChain();
@@ -120,7 +152,8 @@ export const App: React.FC = () => {
   };
 
   const openTapeSendWithContainer = (container?: string) => {
-    setTargetContainer(container || deployments.tapeOutContainer);
+    const activeDeployment = getDeployment(chainId);
+    setTargetContainer(container || activeDeployment.tapeOutContainer);
     setIsTapeSendOpen(true);
   };
 
@@ -128,6 +161,30 @@ export const App: React.FC = () => {
     <div className="min-h-screen bg-[#0B0E14] text-slate-100 flex flex-col font-sans">
       {/* Header */}
       <Header onOpenTapeOutDrawer={() => setIsTapeSendOpen(true)} />
+
+      {/* Network Switch Banner if on non-1952 network */}
+      {isWrongNetwork && (
+        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-3.5">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5 text-amber-300">
+              <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+              <div>
+                <span className="font-bold">Chain Mismatch Detected:</span> Your client/wallet is currently on{' '}
+                <span className="underline font-semibold">{wrongNetworkName || 'another network'}</span>. AjoChain contracts are actively deployed on{' '}
+                <span className="font-bold text-white">X Layer Testnet (Chain ID: 1952)</span>.
+              </div>
+            </div>
+            <button
+              onClick={() => switchChain && switchChain({ chainId: 1952 })}
+              disabled={isSwitching}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold font-sans transition shadow-lg flex-shrink-0 disabled:opacity-50 cursor-pointer"
+            >
+              <span>{isSwitching ? 'Switching...' : 'Switch Wallet to X Layer Testnet (1952)'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-8">

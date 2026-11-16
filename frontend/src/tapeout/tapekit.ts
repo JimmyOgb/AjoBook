@@ -43,9 +43,10 @@ export async function verifyDeWebIntegrityLive(
   manifestHash: string
 ): Promise<{ verified: boolean; hash: string; nodes: { url: string; status: 'OK' | 'ERR'; block: number }[] }> {
   const isTestnet = chainId === 1952 || chainId === 31337;
+  // Use direct, reliable endpoints avoiding browser CORS/reset errors
   const nodes = isTestnet
-    ? ['https://testrpc.xlayer.tech', 'https://xlayertestrpc.okx.com/terigon']
-    : ['https://rpc.xlayer.tech', 'https://xlayerrpc.okx.com'];
+    ? ['https://testrpc.xlayer.tech']
+    : ['https://rpc.xlayer.tech'];
 
   const nodeResults: { url: string; status: 'OK' | 'ERR'; block: number }[] = [];
 

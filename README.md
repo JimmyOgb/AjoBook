@@ -1,8 +1,8 @@
 # AjoChain (AjoBook) 📓⛓️
 ### Non-Custodial Rotational Savings on X Layer & TapeOut Protocol
 
-> **"One Exercise Book. Zero Collector Pockets."**  
-> AjoChain digitizes the ubiquitous African rotational savings and credit association (**Ajo / Esusu / ROSCA**) into an immutable, human-first on-chain digital exercise book on **X Layer**, secured by deterministic digital logic gates via the **TapeOut Protocol** (`tapeout.net`).
+> **"One exercise book. Zero collector pockets."**  
+> AjoChain keeps the Ajo / Esusu circle exactly as people know it—except the book is an immutable smart contract on X Layer. Every payment is written where everyone can read it, and the contract pays the pot out itself. Nobody holds the money.
 
 ---
 
@@ -12,6 +12,51 @@
 - 💻 **GitHub Repository:** **[https://github.com/JimmyOgb/AjoChain](https://github.com/JimmyOgb/AjoChain)**
 - 🔗 **Verified Live 5-Minute Demo Circle on OKLink:** **[`0x4c2d10851889cf992e4b6a8e12508dcdc11e1642`](https://www.oklink.com/x-layer-testnet/address/0x4c2d10851889cf992e4b6a8e12508dcdc11e1642)**
 - 🏭 **AjoFactory on OKLink:** **[`0x138AA4E744d55898D40184526d8Fec60bbd61452`](https://www.oklink.com/x-layer-testnet/address/0x138AA4E744d55898D40184526d8Fec60bbd61452)**
+
+---
+
+## 📖 The "Exercise Book" User Experience (Zero Human Middlemen)
+
+AjoChain mirrors the exact communal routine of an African market Ajo/Esusu exercise book while eliminating every point of human theft, default, or stalled payouts:
+
+### Step 1 — Host Opens a Circle (`CreateCircleModal`)
+- **Circle Name:** Human title for the book (e.g., *"Lagos Tech Founders Ajo"*).
+- **Host's Own Name:** The host enters their chosen name (e.g., *"Tunde (Host)"*) and automatically signs their name into Turn #1 in the book.
+- **Contribution Amount:** Denominated cleanly in `USDT` (e.g., `10 USDT` or `100 USDT`).
+- **Turn Cadence (How Often):**
+  - `Every 5 minutes (Live Demo Mode)` (300 seconds for lightning-fast judge evaluations)
+  - `Daily` (24 hours)
+  - `Weekly` (7 days)
+  - `Monthly` (30 days)
+- **Require 1-Contribution Deposit:** Toggle for 1x deposit escrow protecting the collector against missed turns.
+- **Keep Circle Open for Late Joiners:** Toggle enabling mathematical catch-up for latecomers.
+
+### Step 2 — Join by Link or QR Code
+- Every exercise book generates an instant shareable invite URL (`https://ajochain-mu.vercel.app/?circle=0x...`) with a clean inline SVG QR code.
+- Anyone scanning or opening the link connects their OKX / Injected wallet, types their **own human name** into the book (e.g., *"Ada"*, *"Chidi"*, *"Ngozi"*), and joins in order (receiving the exact payout turn corresponding to their sign-up position).
+
+### Step 3 — Host Starts & One-Signature Turn Payments
+- As soon as $\ge 2$ members sign the book, the host clicks **Start Circle** (or it starts automatically when full).
+- Each turn, each member pays their contribution with **one single signature**.
+- The exact instant the final member contributes, the smart contract **automatically disburses the entire net pot** to the scheduled collector for that turn and advances the deadline to the next turn with zero coordinator intervention.
+
+### Step 4 — Edge-Case Safeguards Built Directly Into the Book UI
+- 🛡️ **Deposits (1x Contribution Escrow):** Shows each member's locked 1-contribution deposit (`10 USDT` / `100 USDT`). If a member misses a turn, their deposit covers their share so the collector still receives the full pot on time. Unused deposits return automatically at the end of the circle.
+- ⏰ **Late Turns (`Close Turn`):** Once a turn's deadline passes, anyone can click **Close Turn**. Unpaid members without deposit coverage are permanently recorded in red as **"Missed"** in the exercise book for everyone to see.
+- 🤝 **Joining Late (`Join Late`):** While open, newcomers can join an active running circle at the end of the order by paying a fair catch-up:
+  $$\text{Catch-Up} = (T_{\text{current}} - 1) \times \text{Contribution}$$
+  This catch-up is split automatically into the vaults of all members who collected before them, ensuring mathematical parity where everyone ends 100% square.
+- 💰 **No Stuck Money (`Collect Waiting Funds`):** Any funds the contract could not deliver directly (including late-join catch-up shares) wait safely in the on-chain vault under that member's name until they click **Collect Waiting Funds**.
+- 📜 **The Book's History (Real Event Log):** Chronological, line-by-line ledger showing every action (`Opened circle`, `Signed name into book`, `Paid Turn #1`, `Pot delivered`, `Marked Missed`, `Joined late with catch-up`), each hyperlinked directly to its transaction hash on **OKLink X Layer Explorer**.
+
+---
+
+## ⚡ Network-Aware Contract Resolution (Chain Mismatch Prevention)
+
+To guarantee a frictionless experience and eliminate `AbiDecodingZeroDataError` or `0x` empty contract returns:
+- **Default Primary Network:** The dApp defaults to **X Layer Testnet (Chain ID: `1952`)** for all unauthenticated visitors and initial page loads (`chains: [xLayerTestnet, xLayerMainnet]`).
+- **Reliable Direct RPC Transports:** Connects directly to `https://testrpc.xlayer.tech` (`1952`) and `https://rpc.xlayer.tech` (`196`), eliminating connection-reset errors.
+- **Smart Bytecode & Chain Check:** Before calling `getAllCircles()` or reading contract state, the app checks contract bytecode via `publicClient.getBytecode`. If the user's wallet is on X Layer Mainnet (`196`) or another network, a prominent 1-click **"Switch Wallet to X Layer Testnet (1952)"** banner guides the user smoothly.
 
 ---
 

@@ -3,7 +3,7 @@ import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain, useW
 import { ShieldCheck, Coins, Wallet, LogOut, CheckCircle2, ChevronDown, Cpu } from 'lucide-react';
 import { xLayerMainnet, xLayerTestnet } from '../config/chains';
 import { Erc20Abi } from '../contracts/abis';
-import deployments from '../config/deployments.json';
+import { getDeployment } from '../config/deployments';
 
 interface HeaderProps {
   onOpenTapeOutDrawer: () => void;
@@ -19,6 +19,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenTapeOutDrawer }) => {
   const [mintSuccess, setMintSuccess] = useState(false);
 
   const { writeContractAsync } = useWriteContract();
+  const activeDeployments = getDeployment(chainId);
 
   const handleMintTestUsdt = async () => {
     if (!address) return;
@@ -27,7 +28,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenTapeOutDrawer }) => {
       setMintSuccess(false);
       // Mint 1,000 USDT (6 decimals = 1,000,000,000 units)
       await writeContractAsync({
-        address: deployments.usdt as `0x${string}`,
+        address: activeDeployments.testUsdt as `0x${string}`,
         abi: Erc20Abi,
         functionName: 'mint',
         args: [address, BigInt(1_000 * 1e6)],

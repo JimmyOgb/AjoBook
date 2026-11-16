@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAccount, useWriteContract, usePublicClient, useChainId } from 'wagmi';
+import { useAccount, useWriteContract, usePublicClient, useChainId, useSwitchChain } from 'wagmi';
 import {
   Clock,
   Coins,
@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { AjoCircleAbi, Erc20Abi } from '../contracts/abis';
 import { QRCodeSvg } from './QRCodeSvg';
-import deployments from '../config/deployments.json';
+import { getDeployment } from '../config/deployments';
 
 interface MemberData {
   address: string;
@@ -48,8 +48,10 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
 }) => {
   const { address } = useAccount();
   const chainId = useChainId();
+  const { switchChain, isPending: isSwitching } = useSwitchChain();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const activeDeployments = getDeployment(chainId);
 
   // On-chain state
   const [circleName, setCircleName] = useState<string>('Ajo Exercise Book');
@@ -90,6 +92,20 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
     if (!publicClient || !circleAddress) return;
     try {
       const cAddr = circleAddress as `0x${string}`;
+
+      // Verify contract exists on active network before executing reads
+      const activeChainId = publicClient.chain?.id || chainId || 1952;
+      if (activeChainId !== 1952 && activeChainId !== 31337) {
+        setErrorNotice(`Active wallet is on Chain ${activeChainId}. Please switch to X Layer Testnet (1952) to read circle state.`);
+        return;
+      }
+
+      const bytecode = await publicClient.getBytecode({ address: cAddr });
+      if (!bytecode || bytecode === '0x') {
+        console.warn(`No contract bytecode at circle address ${cAddr} on chain ${activeChainId}`);
+        setErrorNotice(`Circle contract not found on this network. Please switch to X Layer Testnet (Chain ID 1952).`);
+        return;
+      }
 
       const [
         cName,
@@ -239,7 +255,7 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
       // Approve deposit if required
       if (requireDeposit) {
         await writeContractAsync({
-          address: deployments.usdt as `0x${string}`,
+          address: activeDeployments.usdt as `0x${string}`,
           abi: Erc20Abi,
           functionName: 'approve',
           args: [circleAddress as `0x${string}`, BigInt(contributionAmount * 1e6)],
@@ -288,7 +304,7 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
 
       // Approve contribution
       await writeContractAsync({
-        address: deployments.usdt as `0x${string}`,
+        address: activeDeployments.usdt as `0x${string}`,
         abi: Erc20Abi,
         functionName: 'approve',
         args: [circleAddress as `0x${string}`, BigInt(contributionAmount * 1e6)],
@@ -340,7 +356,7 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
 
       if (totalDue > 0) {
         await writeContractAsync({
-          address: deployments.usdt as `0x${string}`,
+          address: activeDeployments.usdt as `0x${string}`,
           abi: Erc20Abi,
           functionName: 'approve',
           args: [circleAddress as `0x${string}`, BigInt(totalDue * 1e6)],
@@ -438,7 +454,7 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
           </button>
 
           <button
-            onClick={() => onOpenTapeSend(deployments.tapeOutContainer)}
+            onClick={() => onOpenTapeSend(activeDeployments.tapeOutContainer)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-xs font-semibold transition"
           >
             <Cpu className="w-3.5 h-3.5" />
@@ -545,9 +561,20 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
           </div>
         )}
         {errorNotice && (
-          <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
-            <span>{errorNotice}</span>
+          <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+              <span>{errorNotice}</span>
+            </div>
+            {chainId !== 1952 && chainId !== 31337 && (
+              <button
+                onClick={() => switchChain({ chainId: 1952 })}
+                disabled={isSwitching}
+                className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs whitespace-nowrap transition cursor-pointer"
+              >
+                {isSwitching ? 'Switching...' : 'Switch to X Layer Testnet (1952)'}
+              </button>
+            )}
           </div>
         )}
       </div>
