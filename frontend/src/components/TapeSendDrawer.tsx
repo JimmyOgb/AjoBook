@@ -3,6 +3,7 @@ import { useChainId, useAccount, useSignMessage } from 'wagmi';
 import { X, ShieldCheck, Cpu, Lock, CheckCircle2, Copy, AlertCircle, PenTool } from 'lucide-react';
 import { Tap10Message, createTap10Envelope, verifyDeWebIntegrityLive } from '../tapeout/tapekit';
 import { getDeployment } from '../config/deployments';
+import { useWalletGuard } from '../hooks/useWalletGuard';
 
 interface TapeSendDrawerProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
   const chainId = useChainId();
   const { address, isConnected } = useAccount();
   const { signMessageAsync, isPending: isSigning } = useSignMessage();
+  const { requireReadyWallet } = useWalletGuard();
   const activeDeployments = getDeployment(chainId);
   const effectiveContainer = targetContainer || activeDeployments.tapeOutContainer;
   const effectiveCircuitId = circuitId || activeDeployments.tapeOutCircuitId;
@@ -63,11 +65,14 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
   // Trigger standard personal_sign ONLY when user explicitly clicks "Sign & Post Note"
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageText.trim() || !isConnected) return;
+    if (!messageText.trim()) return;
 
     try {
       setIsSubmitting(true);
+      const { account } = await requireReadyWallet();
+
       const signature = await signMessageAsync({
+        account,
         message: `AjoChain TapeSend TAP-10 Note\nType: ${msgType}\nTarget: ${effectiveContainer}\nPayload: ${messageText.trim()}`,
       });
 

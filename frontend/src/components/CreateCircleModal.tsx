@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { useAccount, useWriteContract, useChainId, usePublicClient, useSwitchChain } from 'wagmi';
+import { useWriteContract, useChainId, usePublicClient, useSwitchChain } from 'wagmi';
 import { X, Shield, Cpu, ArrowRight, ArrowLeft, Sparkles, Clock, UserCheck, AlertTriangle } from 'lucide-react';
 import { AjoFactoryAbi } from '../contracts/abis';
 import { getDeployment } from '../config/deployments';
+import { useWalletGuard } from '../hooks/useWalletGuard';
 
 interface CreateCircleModalProps {
   isOpen: boolean;
@@ -11,7 +12,6 @@ interface CreateCircleModalProps {
 }
 
 export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, onClose, onCreated }) => {
-  const { address } = useAccount();
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
@@ -32,20 +32,22 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const { writeContractAsync } = useWriteContract();
+  const { requireReadyWallet } = useWalletGuard();
 
   if (!isOpen) return null;
 
   const handleCreate = async () => {
-    if (!address) return;
     try {
       setIsSubmitting(true);
       setErrorMsg(null);
+
+      const { account, chain } = await requireReadyWallet();
 
       const contributionAmount = BigInt(Math.floor(parseFloat(contribution) * 1e6));
       const turnDuration = BigInt(cadenceSeconds);
       const membersCount = BigInt(maxMembers);
       const protocolFeeBps = BigInt(50); // 0.5%
-      const feeCollector = address;
+      const feeCollector = account;
 
       // Convert processor string to bytes32
       const encoder = new TextEncoder();
@@ -53,6 +55,8 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
       const processorBytes32 = ('0x' + Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')) as `0x${string}`;
 
       const tx = await writeContractAsync({
+        account,
+        chain,
         address: activeDeployments.factory as `0x${string}`,
         abi: AjoFactoryAbi,
         functionName: 'createCircle',

@@ -5,6 +5,7 @@ import { xLayerTestnet, xLayerMainnet, localhostChain } from './chains';
 export const config = createConfig({
   // X Layer Testnet (1952) is the primary default chain for all initial loads and unauthenticated reads
   chains: [xLayerTestnet, xLayerMainnet, localhostChain],
+  multiInjectedProviderDiscovery: true,
   connectors: [
     injected(),
   ],

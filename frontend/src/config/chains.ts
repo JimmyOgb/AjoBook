@@ -20,7 +20,7 @@ export const xLayerTestnet = defineChain({
     default: { http: ['https://testrpc.xlayer.tech'] },
   },
   blockExplorers: {
-    default: { name: 'OKLink', url: 'https://www.oklink.com/xlayer-test' },
+    default: { name: 'OKLink', url: 'https://www.oklink.com/x-layer-testnet' },
   },
   testnet: true,
 });

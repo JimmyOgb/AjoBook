@@ -18,6 +18,7 @@ import {
 import { AjoCircleAbi, Erc20Abi } from '../contracts/abis';
 import { QRCodeSvg } from './QRCodeSvg';
 import { getDeployment } from '../config/deployments';
+import { useWalletGuard } from '../hooks/useWalletGuard';
 
 interface MemberData {
   address: string;
@@ -52,6 +53,7 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
   const activeDeployments = getDeployment(chainId);
+  const { requireReadyWallet } = useWalletGuard();
 
   // On-chain state
   const [circleName, setCircleName] = useState<string>('Ajo Exercise Book');
@@ -261,10 +263,14 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
 
   // Actions
   const handleJoinCircle = async () => {
-    if (!address || !joinName.trim()) return;
+    if (!joinName.trim()) {
+      setErrorNotice('Please enter your name to sign the exercise book');
+      return;
+    }
     try {
       setIsSubmitting(true);
       setErrorNotice(null);
+      const { account, chain } = await requireReadyWallet();
 
       // Approve deposit if required
       if (requireDeposit) {
@@ -273,6 +279,8 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
           abi: Erc20Abi,
           functionName: 'approve',
           args: [circleAddress as `0x${string}`, BigInt(contributionAmount * 1e6)],
+          account,
+          chain,
         });
       }
 
@@ -281,6 +289,8 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
         abi: AjoCircleAbi,
         functionName: 'joinCircle',
         args: [joinName.trim()],
+        account,
+        chain,
       });
 
       setActionNotice(`Welcome, ${joinName}! Added to the exercise book.`);
@@ -297,10 +307,14 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
     try {
       setIsSubmitting(true);
       setErrorNotice(null);
+      const { account, chain } = await requireReadyWallet();
+
       await writeContractAsync({
         address: circleAddress as `0x${string}`,
         abi: AjoCircleAbi,
         functionName: 'startCircle',
+        account,
+        chain,
       });
       setActionNotice('Exercise book started! Turn #1 is live.');
       await fetchCircleData();
@@ -315,6 +329,7 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
     try {
       setIsSubmitting(true);
       setErrorNotice(null);
+      const { account, chain } = await requireReadyWallet();
 
       // Approve contribution
       await writeContractAsync({
@@ -322,12 +337,16 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
         abi: Erc20Abi,
         functionName: 'approve',
         args: [circleAddress as `0x${string}`, BigInt(contributionAmount * 1e6)],
+        account,
+        chain,
       });
 
       await writeContractAsync({
         address: circleAddress as `0x${string}`,
         abi: AjoCircleAbi,
         functionName: 'contribute',
+        account,
+        chain,
       });
 
       setActionNotice(`Turn #${currentTurn} contribution of ${contributionAmount} USDT paid!`);
@@ -343,20 +362,27 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
     try {
       setIsSubmitting(true);
       setErrorNotice(null);
+      const { account, chain } = await requireReadyWallet();
+
       await writeContractAsync({
         address: circleAddress as `0x${string}`,
         abi: AjoCircleAbi,
         functionName: 'releaseTurnPayout',
+        account,
+        chain,
       });
       setActionNotice(`Turn #${currentTurn} scheduled pot disbursed to collector! Next turn timer started.`);
       await fetchCircleData();
     } catch (err: any) {
       // Fallback to closeTurn if contract was deployed with older ABI alias
       try {
+        const { account, chain } = await requireReadyWallet();
         await writeContractAsync({
           address: circleAddress as `0x${string}`,
           abi: AjoCircleAbi,
           functionName: 'closeTurn',
+          account,
+          chain,
         });
         setActionNotice(`Turn #${currentTurn} settled! Pot disbursed and advanced.`);
         await fetchCircleData();
@@ -369,10 +395,14 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
   };
 
   const handleLateJoin = async () => {
-    if (!address || !lateJoinName.trim()) return;
+    if (!lateJoinName.trim()) {
+      setErrorNotice('Please enter your name');
+      return;
+    }
     try {
       setIsSubmitting(true);
       setErrorNotice(null);
+      const { account, chain } = await requireReadyWallet();
 
       const completedTurns = currentTurn - 1;
       const catchUpAmount = completedTurns * contributionAmount;
@@ -385,6 +415,8 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
           abi: Erc20Abi,
           functionName: 'approve',
           args: [circleAddress as `0x${string}`, BigInt(totalDue * 1e6)],
+          account,
+          chain,
         });
       }
 
@@ -393,6 +425,8 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
         abi: AjoCircleAbi,
         functionName: 'joinLate',
         args: [lateJoinName.trim()],
+        account,
+        chain,
       });
 
       setActionNotice(`Welcome late joiner ${lateJoinName}! Catch-up paid to prior turn collectors.`);
@@ -408,10 +442,15 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
   const handleClaimPending = async () => {
     try {
       setIsSubmitting(true);
+      setErrorNotice(null);
+      const { account, chain } = await requireReadyWallet();
+
       await writeContractAsync({
         address: circleAddress as `0x${string}`,
         abi: AjoCircleAbi,
         functionName: 'claimPending',
+        account,
+        chain,
       });
       setActionNotice('Claimed pending catch-up balance to your wallet!');
       await fetchCircleData();
@@ -425,10 +464,15 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
   const handleWithdrawDeposit = async () => {
     try {
       setIsSubmitting(true);
+      setErrorNotice(null);
+      const { account, chain } = await requireReadyWallet();
+
       await writeContractAsync({
         address: circleAddress as `0x${string}`,
         abi: AjoCircleAbi,
         functionName: 'withdrawDeposit',
+        account,
+        chain,
       });
       setActionNotice('Unused security deposit returned to your wallet!');
       await fetchCircleData();
