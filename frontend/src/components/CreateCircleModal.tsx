@@ -13,7 +13,7 @@ interface CreateCircleModalProps {
 
 export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, onClose, onCreated }) => {
   const chainId = useChainId();
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 1952 });
   const { switchChain, isPending: isSwitching } = useSwitchChain();
   const activeDeployments = getDeployment(chainId);
   const [step, setStep] = useState<1 | 2 | 3>(1);

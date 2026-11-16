@@ -11,8 +11,8 @@ import { getDeployment } from './config/deployments';
 import { AnkaraPattern } from './components/AnkaraPattern';
 
 export const App: React.FC = () => {
-  const publicClient = usePublicClient();
   const chainId = useChainId();
+  const publicClient = usePublicClient({ chainId: 1952 });
   const { switchChain, isPending: isSwitching } = useSwitchChain();
 
   const [selectedCircleAddress, setSelectedCircleAddress] = useState<string | null>(null);
@@ -84,55 +84,57 @@ export const App: React.FC = () => {
         )
       ) as `0x${string}`[];
 
-      const loadedCircles: CircleData[] = [];
+      const results = await Promise.all(
+        uniqueAddrs.map(async (cAddr) => {
+          try {
+            const cBytecode = await publicClient.getBytecode({ address: cAddr });
+            if (!cBytecode || cBytecode === '0x') return null;
 
-      for (const cAddr of uniqueAddrs) {
-        try {
-          const cBytecode = await publicClient.getBytecode({ address: cAddr });
-          if (!cBytecode || cBytecode === '0x') continue;
+            const [
+              name,
+              hostName,
+              cAmount,
+              tDuration,
+              maxM,
+              mCount,
+              cTurn,
+              cStatus,
+              rDeposit,
+              cProcessor,
+            ] = await Promise.all([
+              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'circleName' }),
+              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'hostName' }),
+              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'contributionAmount' }),
+              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'turnDuration' }),
+              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'maxMembers' }),
+              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'memberCount' }),
+              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'currentTurn' }),
+              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'status' }),
+              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'requireDeposit' }),
+              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'tapeOutProcessor' }),
+            ]);
 
-          const [
-            name,
-            hostName,
-            cAmount,
-            tDuration,
-            maxM,
-            mCount,
-            cTurn,
-            cStatus,
-            rDeposit,
-            cProcessor,
-          ] = await Promise.all([
-            publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'circleName' }),
-            publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'hostName' }),
-            publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'contributionAmount' }),
-            publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'turnDuration' }),
-            publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'maxMembers' }),
-            publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'memberCount' }),
-            publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'currentTurn' }),
-            publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'status' }),
-            publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'requireDeposit' }),
-            publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'tapeOutProcessor' }),
-          ]);
+            return {
+              address: cAddr,
+              name: name || 'Ajo Exercise Book',
+              hostName: hostName || 'Host',
+              contributionAmount: Number(cAmount) / 1e6,
+              turnDuration: Number(tDuration),
+              maxMembers: Number(maxM),
+              currentMembers: Number(mCount),
+              currentTurn: Number(cTurn || 1),
+              status: (cStatus === 0 ? 'OPEN' : cStatus === 1 ? 'ACTIVE' : 'COMPLETED') as 'OPEN' | 'ACTIVE' | 'COMPLETED',
+              requireDeposit: rDeposit,
+              tapeOutProcessor: cProcessor ? String(cProcessor) : 'LAGOS_ARM',
+            } as CircleData;
+          } catch (e) {
+            console.warn(`Could not load circle ${cAddr}:`, e);
+            return null;
+          }
+        })
+      );
 
-          loadedCircles.push({
-            address: cAddr,
-            name: name || 'Ajo Exercise Book',
-            hostName: hostName || 'Host',
-            contributionAmount: Number(cAmount) / 1e6,
-            turnDuration: Number(tDuration),
-            maxMembers: Number(maxM),
-            currentMembers: Number(mCount),
-            currentTurn: Number(cTurn || 1),
-            status: cStatus === 0 ? 'OPEN' : cStatus === 1 ? 'ACTIVE' : 'COMPLETED',
-            requireDeposit: rDeposit,
-            tapeOutProcessor: cProcessor ? String(cProcessor) : 'LAGOS_ARM',
-          });
-        } catch (e) {
-          console.warn(`Could not load circle ${cAddr}:`, e);
-        }
-      }
-
+      const loadedCircles = results.filter((c): c is CircleData => c !== null);
       setCircles(loadedCircles);
     } catch (err) {
       console.error('Failed to load on-chain circles:', err);
