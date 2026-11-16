@@ -1,6 +1,7 @@
-import { useAccount, useConnect, useChainId, usePublicClient } from 'wagmi';
-import { createWalletClient, custom, encodeFunctionData } from 'viem';
+import { usePublicClient, useAccount } from 'wagmi';
+import { encodeFunctionData } from 'viem';
 import { xLayerTestnet } from '../config/chains';
+import { useWallet } from '../context/WalletContext';
 
 export interface SendContractTxParams {
   address: `0x${string}`;
@@ -11,64 +12,44 @@ export interface SendContractTxParams {
 }
 
 export function useWalletGuard() {
-  const { address, isConnected, connector } = useAccount();
-  const { connectAsync, connectors } = useConnect();
+  const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
   const publicClient = usePublicClient();
-  const currentChainId = useChainId();
+  const {
+    providers,
+    selectedRdns,
+    activeProvider,
+    activeAccount,
+    activeChainId,
+    isConnected,
+    selectWallet,
+    disconnectWallet,
+    resetWalletSession,
+    getActiveProvider,
+  } = useWallet();
 
-  const ensureAuthorizedWallet = async () => {
-    let activeConnector = connector;
+  const ensureAuthorizedWallet = async (): Promise<{
+    provider: any;
+    account: `0x${string}`;
+    chain: typeof xLayerTestnet;
+  }> => {
+    const { provider } = await getActiveProvider();
 
-    // 1. If not connected, connect via preferred or first connector
-    if (!isConnected || !activeConnector) {
-      const preferred = connectors.find(
-        (c) => c.id === 'com.okex.wallet' || c.id === 'io.metamask' || c.type === 'injected'
-      ) || connectors[0];
-
-      if (!preferred) {
-        throw new Error('No web3 wallet detected. Please install OKX Wallet or MetaMask to continue.');
-      }
-
-      await connectAsync({ connector: preferred });
-      activeConnector = preferred;
-    }
-
-    // 2. Obtain exact EIP-1193 provider from active connector (never let secondary extensions hijack)
-    let provider: any = null;
-    if (activeConnector && typeof activeConnector.getProvider === 'function') {
-      try {
-        provider = await activeConnector.getProvider();
-      } catch (e) {
-        console.warn('Failed to get provider from active connector:', e);
-      }
-    }
-
-    if (!provider && typeof window !== 'undefined') {
-      provider = (window as any).okxwallet || (window as any).ethereum;
-    }
-
-    if (!provider || typeof provider.request !== 'function') {
-      throw new Error('EIP-1193 provider not found. Please unlock your wallet and refresh.');
-    }
-
-    // 3. Explicitly request accounts on this exact provider so origin authorization is granted
+    // 1. Explicitly call eth_requestAccounts directly on the shared provider
     let accounts: string[] = [];
     try {
       accounts = (await provider.request({ method: 'eth_requestAccounts' })) as string[];
     } catch (reqErr: any) {
       if (reqErr?.code === 4001) {
-        throw new Error('Wallet connection rejected by user.');
+        throw new Error('Connection request rejected by user in wallet.');
       }
       throw reqErr;
     }
 
     if (!accounts || accounts.length === 0 || !accounts[0]) {
-      throw new Error('No authorized account returned by wallet. Please authorize the dApp in your wallet extension.');
+      throw new Error('Please unlock your wallet and approve account access for this site.');
     }
 
-    const authorizedAccount = accounts[0] as `0x${string}`;
-
-    // 4. Verify chain ID on this exact provider
+    // 2. Check eth_chainId and switch/add if needed
     try {
       const currentChainHex = (await provider.request({ method: 'eth_chainId' })) as string;
       const chainIdNum = parseInt(currentChainHex, 16);
@@ -116,18 +97,19 @@ export function useWalletGuard() {
       console.warn('Chain verification on provider warning:', chainErr);
     }
 
-    // 5. Construct dedicated Viem WalletClient for standard client operations if needed
-    const walletClient = createWalletClient({
-      account: authorizedAccount,
-      chain: xLayerTestnet,
-      transport: custom(provider),
-    });
+    // 3. Re-read eth_accounts after chain switch
+    let authorizedAccount = accounts[0];
+    try {
+      const reRead = (await provider.request({ method: 'eth_accounts' })) as string[];
+      if (reRead && reRead.length > 0 && reRead[0]) {
+        authorizedAccount = reRead[0];
+      }
+    } catch {}
 
     return {
-      walletClient,
-      account: authorizedAccount,
-      chain: xLayerTestnet,
       provider,
+      account: authorizedAccount as `0x${string}`,
+      chain: xLayerTestnet,
     };
   };
 
@@ -154,7 +136,7 @@ export function useWalletGuard() {
       args,
     });
 
-    // 2. Estimate gas against public X Layer Testnet RPC (fallback to 600,000 on estimate failure)
+    // 2. Estimate gas against public X Layer Testnet RPC (fallback to 650,000 on estimate failure)
     let estimatedGas = 350000n;
     if (publicClient) {
       try {
@@ -198,12 +180,21 @@ export function useWalletGuard() {
     return { txHash, receipt };
   };
 
+  const effectiveAddress = activeAccount || wagmiAddress;
+  const effectiveConnected = isConnected || wagmiConnected;
+
   return {
     ensureAuthorizedWallet,
     requireReadyWallet: ensureAuthorizedWallet, // alias for backwards compatibility
     sendContractTx,
-    address,
-    isConnected,
-    currentChainId,
+    address: effectiveAddress,
+    isConnected: effectiveConnected,
+    currentChainId: activeChainId || 1952,
+    providers,
+    selectedRdns,
+    activeProvider,
+    selectWallet,
+    disconnectWallet,
+    resetWalletSession,
   };
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from 'wagmi';
-import { ShieldCheck, Coins, Wallet, LogOut, CheckCircle2, ChevronDown, Cpu, X } from 'lucide-react';
+import { useConnect, useChainId, useSwitchChain } from 'wagmi';
+import { ShieldCheck, Coins, Wallet, LogOut, CheckCircle2, ChevronDown, Cpu, X, RefreshCw } from 'lucide-react';
 import { xLayerMainnet, xLayerTestnet } from '../config/chains';
 import { Erc20Abi } from '../contracts/abis';
 import { getDeployment } from '../config/deployments';
@@ -11,9 +11,19 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenTapeOutDrawer }) => {
-  const { address, isConnected } = useAccount();
+  const {
+    address,
+    isConnected,
+    providers,
+    selectedRdns,
+    selectWallet,
+    disconnectWallet,
+    resetWalletSession,
+    ensureAuthorizedWallet,
+    sendContractTx,
+  } = useWalletGuard();
+
   const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
   const chainId = useChainId();
   const { switchChain, switchChainAsync } = useSwitchChain();
   const [isMinting, setIsMinting] = useState(false);
@@ -21,7 +31,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenTapeOutDrawer }) => {
   const [showWalletModal, setShowWalletModal] = useState(false);
 
   const activeDeployments = getDeployment(chainId);
-  const { ensureAuthorizedWallet, sendContractTx } = useWalletGuard();
 
   const handleMintTestUsdt = async () => {
     try {
@@ -169,14 +178,33 @@ export const Header: React.FC<HeaderProps> = ({ onOpenTapeOutDrawer }) => {
 
           {/* Wallet Connect & EIP-6963 Selector */}
           {isConnected && address ? (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600/10 border border-blue-500/30 text-blue-300 text-xs font-mono">
-              <span>{address.substring(0, 6)}...{address.substring(address.length - 4)}</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600/10 border border-blue-500/30 text-blue-300 text-xs font-mono">
+                {selectedRdns === 'io.metamask' ? (
+                  <span className="w-2 h-2 rounded-full bg-amber-400" title="MetaMask" />
+                ) : selectedRdns === 'com.okex.wallet' ? (
+                  <span className="w-2 h-2 rounded-full bg-white" title="OKX Wallet" />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                )}
+                <span>{address.substring(0, 6)}...{address.substring(address.length - 4)}</span>
+                <button
+                  onClick={() => disconnectWallet()}
+                  className="text-slate-400 hover:text-rose-400 transition cursor-pointer ml-1"
+                  title="Disconnect Wallet"
+                >
+                  <LogOut className="w-3 h-3" />
+                </button>
+              </div>
+
+              {/* Reset Wallet Session Button (clears stale wagmi/portal storage) */}
               <button
-                onClick={() => disconnect()}
-                className="text-slate-400 hover:text-rose-400 transition cursor-pointer"
-                title="Disconnect Wallet"
+                onClick={() => resetWalletSession()}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-amber-400 text-xs font-medium transition cursor-pointer"
+                title="Reset session & clear conflicting wallet storage"
               >
-                <LogOut className="w-3 h-3" />
+                <RefreshCw className="w-3 h-3" />
+                <span className="hidden sm:inline">Reset</span>
               </button>
             </div>
           ) : (
@@ -190,11 +218,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenTapeOutDrawer }) => {
                 <ChevronDown className="w-3 h-3 ml-0.5 opacity-70" />
               </button>
 
-              {/* EIP-6963 Detected Wallets Dropdown */}
+              {/* EIP-6963 Direct Discovered Wallets Dropdown */}
               {showWalletModal && (
-                <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#121824] border border-slate-800 p-2 shadow-2xl z-50 space-y-1 animate-in fade-in duration-150">
+                <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-[#121824] border border-slate-800 p-2 shadow-2xl z-50 space-y-1 animate-in fade-in duration-150">
                   <div className="flex items-center justify-between px-2 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800/80 mb-1">
-                    <span>Select Wallet</span>
+                    <span>Select Wallet (EIP-6963)</span>
                     <button
                       onClick={() => setShowWalletModal(false)}
                       className="text-slate-500 hover:text-white"
@@ -202,7 +230,35 @@ export const Header: React.FC<HeaderProps> = ({ onOpenTapeOutDrawer }) => {
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  {connectors && connectors.length > 0 ? (
+
+                  {providers && providers.length > 0 ? (
+                    providers.map((p) => (
+                      <button
+                        key={p.info.uuid || p.info.rdns}
+                        onClick={async () => {
+                          try {
+                            await selectWallet(p.info.rdns);
+                          } catch (e: any) {
+                            console.error('Wallet select failed:', e);
+                          }
+                          setShowWalletModal(false);
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-white hover:bg-slate-800/80 transition cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {p.info.icon ? (
+                            <img src={p.info.icon} alt={p.info.name} className="w-4 h-4 rounded" />
+                          ) : (
+                            <Wallet className="w-4 h-4 text-blue-400" />
+                          )}
+                          <span className="font-semibold text-slate-200 group-hover:text-white">{p.info.name}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {p.info.rdns === 'io.metamask' ? 'MetaMask' : p.info.rdns === 'com.okex.wallet' ? 'OKX' : 'EIP-6963'}
+                        </span>
+                      </button>
+                    ))
+                  ) : connectors && connectors.length > 0 ? (
                     connectors.map((connector) => (
                       <button
                         key={connector.uid || connector.id}
@@ -213,14 +269,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenTapeOutDrawer }) => {
                         className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-white hover:bg-slate-800/80 transition cursor-pointer group"
                       >
                         <div className="flex items-center gap-2.5">
-                          {connector.icon ? (
-                            <img src={connector.icon} alt={connector.name} className="w-4 h-4 rounded" />
-                          ) : (
-                            <Wallet className="w-4 h-4 text-blue-400" />
-                          )}
+                          <Wallet className="w-4 h-4 text-blue-400" />
                           <span className="font-semibold text-slate-200 group-hover:text-white">{connector.name}</span>
                         </div>
-                        <span className="text-[10px] text-slate-500 font-mono">EIP-6963</span>
+                        <span className="text-[10px] text-slate-500 font-mono">Connector</span>
                       </button>
                     ))
                   ) : (
@@ -228,6 +280,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenTapeOutDrawer }) => {
                       No web3 extension detected. Please install OKX Wallet or MetaMask.
                     </div>
                   )}
+
+                  <div className="pt-1 border-t border-slate-800/80">
+                    <button
+                      onClick={() => {
+                        resetWalletSession();
+                        setShowWalletModal(false);
+                      }}
+                      className="w-full text-center px-2 py-1.5 text-[11px] text-slate-400 hover:text-amber-400 transition cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Reset / Clear Cache</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
