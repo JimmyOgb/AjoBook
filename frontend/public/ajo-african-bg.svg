@@ -1,0 +1,224 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
+  <defs>
+    <!-- Master Background Gradient: Deep Adire Indigo to Nigerian Emerald & Terracotta -->
+    <linearGradient id="skyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070C16"/>
+      <stop offset="45%" stop-color="#0B1526"/>
+      <stop offset="80%" stop-color="#0A231C"/>
+      <stop offset="100%" stop-color="#121D18"/>
+    </linearGradient>
+
+    <!-- Warm Golden Ambient Glow -->
+    <radialGradient id="sunGlow" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.22"/>
+      <stop offset="40%" stop-color="#D97706" stop-opacity="0.10"/>
+      <stop offset="75%" stop-color="#008751" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#070C16" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Terracotta Warmth Bottom Left -->
+    <radialGradient id="terraGlow" cx="20%" cy="85%" r="45%">
+      <stop offset="0%" stop-color="#C2410C" stop-opacity="0.20"/>
+      <stop offset="50%" stop-color="#9A3412" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#070C16" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Emerald Bloom Bottom Right -->
+    <radialGradient id="emeraldGlow" cx="80%" cy="80%" r="45%">
+      <stop offset="0%" stop-color="#008751" stop-opacity="0.25"/>
+      <stop offset="50%" stop-color="#047857" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#070C16" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Ankara Geometric Tile Pattern -->
+    <pattern id="ankaraTile" width="70" height="70" patternUnits="userSpaceOnUse">
+      <path d="M35 0 L70 35 L35 70 L0 35 Z" fill="none" stroke="#F59E0B" stroke-width="0.8" stroke-opacity="0.25"/>
+      <path d="M35 12 L58 35 L35 58 L12 35 Z" fill="none" stroke="#10B981" stroke-width="0.6" stroke-opacity="0.2"/>
+      <circle cx="35" cy="35" r="3.5" fill="#F59E0B" fill-opacity="0.3"/>
+      <path d="M0 0 L18 18 M70 0 L52 18 M0 70 L18 52 M70 70 L52 52" stroke="#38BDF8" stroke-width="0.6" stroke-opacity="0.18"/>
+    </pattern>
+
+    <!-- Cowrie Shell Symbol -->
+    <g id="cowrie">
+      <ellipse cx="0" cy="0" rx="14" ry="20" fill="#FDF8E2" fill-opacity="0.9" stroke="#D97706" stroke-width="1.5"/>
+      <ellipse cx="0" cy="0" rx="10" ry="16" fill="#F3E7BE"/>
+      <path d="M0 -14 L0 14" stroke="#92400E" stroke-width="2" stroke-linecap="round"/>
+      <path d="M-4 -9 L4 -9 M-5 -4 L5 -4 M-5 1 L5 1 M-5 6 L5 6 M-4 10 L4 10" stroke="#78350F" stroke-width="1.2" stroke-linecap="round"/>
+    </g>
+
+    <!-- Gold Coin Motif -->
+    <g id="goldCoin">
+      <circle cx="0" cy="0" r="16" fill="#F59E0B" stroke="#FCD34D" stroke-width="1.5"/>
+      <circle cx="0" cy="0" r="12" fill="none" stroke="#B45309" stroke-width="1" stroke-dasharray="2 2"/>
+      <text x="0" y="5" font-family="system-ui, sans-serif" font-weight="900" font-size="11" fill="#78350F" text-anchor="middle">₦</text>
+    </g>
+
+    <!-- Exercise Book Gradient -->
+    <linearGradient id="bookCover" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A8A"/>
+      <stop offset="50%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+
+    <linearGradient id="pageGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#F8FAFC"/>
+      <stop offset="48%" stop-color="#FFFFFF"/>
+      <stop offset="50%" stop-color="#E2E8F0"/>
+      <stop offset="52%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F1F5F9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 1. Background Fill -->
+  <rect width="1600" height="900" fill="url(#skyGrad)"/>
+
+  <!-- 2. Ambient Atmosphere Blooms -->
+  <rect width="1600" height="900" fill="url(#sunGlow)"/>
+  <rect width="1600" height="900" fill="url(#terraGlow)"/>
+  <rect width="1600" height="900" fill="url(#emeraldGlow)"/>
+
+  <!-- 3. Geometric Ankara / Adire Backdrop Overlay -->
+  <rect width="1600" height="900" fill="url(#ankaraTile)" opacity="0.6"/>
+
+  <!-- 4. Subtle Lagos Skyline & Lekki-Ikoyi Bridge Silhouette in Horizon -->
+  <g opacity="0.18" fill="#1E293B">
+    <!-- Skyline blocks -->
+    <rect x="180" y="440" width="45" height="180" rx="3"/>
+    <rect x="235" y="410" width="55" height="210" rx="3"/>
+    <rect x="300" y="460" width="40" height="160" rx="2"/>
+    <rect x="350" y="390" width="70" height="230" rx="4"/>
+    <rect x="430" y="430" width="50" height="190" rx="3"/>
+
+    <!-- Bridge Pylon & Cables -->
+    <polygon points="1200,320 1215,320 1235,620 1180,620"/>
+    <polygon points="1350,340 1362,340 1380,620 1332,620"/>
+    <line x1="1208" y1="360" x2="1080" y2="600" stroke="#38BDF8" stroke-width="1.2" opacity="0.6"/>
+    <line x1="1208" y1="400" x2="1110" y2="600" stroke="#38BDF8" stroke-width="1" opacity="0.5"/>
+    <line x1="1208" y1="440" x2="1140" y2="600" stroke="#38BDF8" stroke-width="1" opacity="0.4"/>
+    <line x1="1208" y1="360" x2="1335" y2="600" stroke="#38BDF8" stroke-width="1.2" opacity="0.6"/>
+    <line x1="1208" y1="400" x2="1305" y2="600" stroke="#38BDF8" stroke-width="1" opacity="0.5"/>
+    
+    <!-- Palms -->
+    <path d="M120 620 Q130 540 160 500 M160 500 Q130 490 100 510 M160 500 Q150 470 140 450 M160 500 Q180 470 200 460 M160 500 Q190 490 210 515" stroke="#10B981" stroke-width="3" fill="none" opacity="0.4"/>
+    <path d="M1480 620 Q1465 530 1430 490 M1430 490 Q1400 480 1370 500 M1430 490 Q1420 460 1410 440 M1430 490 Q1450 460 1470 450 M1430 490 Q1460 480 1480 505" stroke="#10B981" stroke-width="3" fill="none" opacity="0.4"/>
+  </g>
+
+  <!-- 5. Community Gathering Circle Silhouettes (Diverse Nigerian Savers) -->
+  <g opacity="0.32">
+    <!-- Left Group: Female Trader in Gele / Traditional Attire & Co-founder -->
+    <g fill="#10B981">
+      <!-- Gele / Headwrap Silhouette -->
+      <path d="M260 520 C240 490 250 450 280 440 C310 430 335 445 340 470 C355 450 380 455 385 480 C390 510 370 535 340 540 Z"/>
+      <!-- Shoulders & Kaftan -->
+      <path d="M260 550 C230 570 210 610 200 680 L400 680 C390 610 370 570 340 550 Z"/>
+    </g>
+
+    <g fill="#38BDF8" opacity="0.8">
+      <!-- Professional with Agbada -->
+      <circle cx="440" cy="480" r="32"/>
+      <path d="M440 520 C390 540 350 580 340 680 L540 680 C530 580 490 540 440 520 Z"/>
+    </g>
+
+    <!-- Right Group: Tech Founder with Glasses & Partner in Dashiki -->
+    <g fill="#F59E0B" opacity="0.75">
+      <circle cx="1160" cy="480" r="32"/>
+      <path d="M1160 520 C1110 540 1070 580 1060 680 L1260 680 C1250 580 1210 540 1160 520 Z"/>
+    </g>
+
+    <g fill="#10B981" opacity="0.85">
+      <!-- Female Leader / Matron in High Gele -->
+      <path d="M1280 500 C1260 460 1280 430 1315 420 C1345 410 1375 430 1380 455 C1400 445 1425 460 1425 490 C1425 520 1400 540 1365 545 Z"/>
+      <path d="M1290 555 C1260 575 1240 615 1230 680 L1440 680 C1430 615 1410 575 1375 555 Z"/>
+    </g>
+  </g>
+
+  <!-- 6. Centerpiece: The Grand Nigerian Ajo / Esusu Exercise Book -->
+  <g transform="translate(800, 560)">
+    <!-- Book Shadow & Outer Cover -->
+    <path d="M-360 40 Q0 80 360 40 L380 -180 Q0 -130 -380 -180 Z" fill="#030712" opacity="0.6"/>
+    <path d="M-350 30 Q0 70 350 30 L370 -170 Q0 -120 -370 -170 Z" fill="url(#bookCover)" stroke="#3B82F6" stroke-width="2"/>
+
+    <!-- Open Pages (Left & Right 40-Leaves Book) -->
+    <path d="M-340 20 Q0 60 0 20 L0 -160 Q-180 -150 -355 -160 Z" fill="url(#pageGrad)"/>
+    <path d="M0 20 Q0 60 340 20 L355 -160 Q180 -150 0 -160 Z" fill="url(#pageGrad)"/>
+
+    <!-- Spine Center Shadow -->
+    <path d="M-15 23 Q0 55 15 23 L15 -160 Q0 -155 -15 -160 Z" fill="#94A3B8" opacity="0.35"/>
+
+    <!-- Classic Nigerian School Exercise Book Red Margin Rule (Left Page) -->
+    <line x1="-275" y1="-155" x2="-265" y2="25" stroke="#EF4444" stroke-width="1.8" opacity="0.75"/>
+
+    <!-- Classic Ruled Light-Blue Ledger Lines (Left Page) -->
+    <g stroke="#93C5FD" stroke-width="1" opacity="0.55">
+      <line x1="-335" y1="-130" x2="-25" y2="-125"/>
+      <line x1="-335" y1="-100" x2="-25" y2="-95"/>
+      <line x1="-335" y1="-70" x2="-25" y2="-65"/>
+      <line x1="-335" y1="-40" x2="-25" y2="-35"/>
+      <line x1="-335" y1="-10" x2="-25" y2="-5"/>
+    </g>
+
+    <!-- Classic Ruled Light-Blue Ledger Lines (Right Page) -->
+    <g stroke="#93C5FD" stroke-width="1" opacity="0.55">
+      <line x1="25" y1="-125" x2="335" y2="-130"/>
+      <line x1="25" y1="-95" x2="335" y2="-100"/>
+      <line x1="25" y1="-65" x2="335" y2="-70"/>
+      <line x1="25" y1="-35" x2="335" y2="-40"/>
+      <line x1="25" y1="-5" x2="335" y2="-10"/>
+    </g>
+
+    <!-- Simulated Calligraphic Member Signatures in Book -->
+    <!-- Member 1: Tunde (Host) -->
+    <text x="-255" y="-103" font-family="Georgia, serif" font-style="italic" font-weight="bold" font-size="14" fill="#1E293B">1. Tunde (Host)</text>
+    <text x="-120" y="-103" font-family="monospace" font-size="11" fill="#64748B">100 USDT</text>
+    <rect x="-45" y="-115" width="38" height="15" rx="3" fill="#DCFCE7" stroke="#16A34A" stroke-width="1"/>
+    <text x="-26" y="-104" font-family="sans-serif" font-weight="900" font-size="8" fill="#15803D" text-anchor="middle">PAID</text>
+
+    <!-- Member 2: Ada -->
+    <text x="-255" y="-73" font-family="Georgia, serif" font-style="italic" font-weight="bold" font-size="14" fill="#1E293B">2. Ada</text>
+    <text x="-120" y="-73" font-family="monospace" font-size="11" fill="#64748B">100 USDT</text>
+    <rect x="-45" y="-85" width="38" height="15" rx="3" fill="#DCFCE7" stroke="#16A34A" stroke-width="1"/>
+    <text x="-26" y="-74" font-family="sans-serif" font-weight="900" font-size="8" fill="#15803D" text-anchor="middle">PAID</text>
+
+    <!-- Member 3: Chidi -->
+    <text x="-255" y="-43" font-family="Georgia, serif" font-style="italic" font-weight="bold" font-size="14" fill="#1E293B">3. Chidi</text>
+    <text x="-120" y="-43" font-family="monospace" font-size="11" fill="#64748B">100 USDT</text>
+    <rect x="-45" y="-55" width="38" height="15" rx="3" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+    <text x="-26" y="-44" font-family="sans-serif" font-weight="900" font-size="8" fill="#B45309" text-anchor="middle">PENDING</text>
+
+    <!-- Right Page: On-Chain Circuit Seal -->
+    <g transform="translate(180, -70)">
+      <circle cx="0" cy="0" r="48" fill="#F8FAFC" stroke="#008751" stroke-width="2" stroke-dasharray="3 3"/>
+      <circle cx="0" cy="0" r="40" fill="#ECFDF5" stroke="#10B981" stroke-width="1.5"/>
+      <text x="0" y="-15" font-family="sans-serif" font-weight="900" font-size="9" fill="#047857" text-anchor="middle" letter-spacing="1">TAPEOUT NET</text>
+      <text x="0" y="2" font-family="monospace" font-weight="bold" font-size="12" fill="#0F172A" text-anchor="middle">0% CUSTODY</text>
+      <text x="0" y="16" font-family="sans-serif" font-weight="bold" font-size="8" fill="#059669" text-anchor="middle">X LAYER • 1952</text>
+      <path d="M-20 22 L20 22" stroke="#059669" stroke-width="1"/>
+    </g>
+
+    <!-- Fountain Pen resting on book -->
+    <g transform="translate(120, -10) rotate(-35)">
+      <rect x="-5" y="-120" width="10" height="90" rx="3" fill="#1E293B"/>
+      <rect x="-5" y="-70" width="10" height="8" fill="#F59E0B"/>
+      <polygon points="-5,-30 5,-30 0,0" fill="#D97706"/>
+      <polygon points="-3,-20 3,-20 0,-5" fill="#FEF3C7"/>
+      <line x1="0" y1="-30" x2="0" y2="-5" stroke="#92400E" stroke-width="0.8"/>
+    </g>
+  </g>
+
+  <!-- 7. Foreground Floating Traditional Currency Symbols & Sparkles -->
+  <!-- Left Side Cowries -->
+  <use href="#cowrie" x="180" y="720" transform="rotate(-15, 180, 720) scale(1.2)"/>
+  <use href="#cowrie" x="240" y="770" transform="rotate(25, 240, 770) scale(0.9)"/>
+  <use href="#goldCoin" x="130" y="780" transform="scale(1.1)"/>
+
+  <!-- Right Side Cowries & Gold Coins -->
+  <use href="#cowrie" x="1420" y="740" transform="rotate(30, 1420, 740) scale(1.2)"/>
+  <use href="#cowrie" x="1360" y="790" transform="rotate(-20, 1360, 790) scale(0.9)"/>
+  <use href="#goldCoin" x="1460" y="680" transform="scale(1.2)"/>
+  <use href="#goldCoin" x="1480" y="790" transform="scale(0.95)"/>
+
+  <!-- Subtle Radiant Floating Glow Nodes -->
+  <circle cx="800" cy="460" r="140" fill="#F59E0B" opacity="0.08" filter="blur(30px)"/>
+  <circle cx="700" cy="520" r="100" fill="#10B981" opacity="0.10" filter="blur(25px)"/>
+  <circle cx="920" cy="520" r="100" fill="#38BDF8" opacity="0.08" filter="blur(25px)"/>
+</svg>

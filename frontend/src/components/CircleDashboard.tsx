@@ -19,6 +19,7 @@ import { AjoCircleAbi, Erc20Abi } from '../contracts/abis';
 import { QRCodeSvg } from './QRCodeSvg';
 import { getDeployment } from '../config/deployments';
 import { useWalletGuard } from '../hooks/useWalletGuard';
+import { AnkaraPattern } from './AnkaraPattern';
 
 interface MemberData {
   address: string;
@@ -40,6 +41,27 @@ interface CircleDashboardProps {
   circleAddress: string;
   onBack: () => void;
   onOpenTapeSend: (targetContainer?: string) => void;
+}
+
+function formatProcessorLabel(raw: string | undefined): string {
+  if (!raw || raw === '0x' || raw === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+    return 'TapeOut Verified';
+  }
+  if (raw.startsWith('0x')) {
+    try {
+      let str = '';
+      for (let i = 2; i < raw.length; i += 2) {
+        const code = parseInt(raw.substring(i, i + 2), 16);
+        if (code === 0) break;
+        if (code >= 32 && code <= 126) {
+          str += String.fromCharCode(code);
+        }
+      }
+      if (str.trim().length > 0 && str.trim().length <= 20) return str.trim();
+    } catch {}
+    return `${raw.substring(0, 6)}...${raw.substring(raw.length - 4)}`;
+  }
+  return raw;
 }
 
 export const CircleDashboard: React.FC<CircleDashboardProps> = ({
@@ -531,34 +553,36 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
       )}
 
       {/* Circle Exercise Book Header Card */}
-      <div className="p-6 rounded-3xl bg-gradient-to-br from-[#121824] via-[#161F30] to-[#0D131F] border border-slate-800 shadow-2xl relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="p-6 rounded-3xl ajo-hero-frame border border-slate-800 shadow-2xl relative overflow-hidden border-l-4 border-l-rose-500/70 backdrop-blur-md">
+        <AnkaraPattern className="text-emerald-400 opacity-[0.035]" />
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border ${
-                status === 'OPEN' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                'bg-blue-500/10 text-blue-400 border-blue-500/20'
+              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border whitespace-nowrap ${
+                status === 'OPEN' ? 'bg-amber-500/10 text-amber-400 border-amber-500/25' :
+                status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' :
+                'bg-blue-500/10 text-blue-400 border-blue-500/25'
               }`}>
                 {status === 'OPEN' ? 'Book Forming (Open for Joins)' : status === 'ACTIVE' ? `Turn ${currentTurn} of ${totalSlots}` : 'Completed'}
               </span>
-              <span className="text-xs text-slate-400 font-mono">
-                Host: {hostName} ({hostAddr ? `${hostAddr.substring(0, 6)}...${hostAddr.substring(hostAddr.length - 4)}` : ''})
+              <span className="text-xs text-slate-300 font-mono">
+                Host: <span className="font-serif italic text-amber-300 font-semibold">{hostName}</span> ({hostAddr ? `${hostAddr.substring(0, 6)}...${hostAddr.substring(hostAddr.length - 4)}` : ''})
               </span>
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-blue-400" />
+              <BookOpen className="w-6 h-6 text-emerald-400" />
               <span>{circleName}</span>
             </h1>
 
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 font-mono">
               <span>
-                Contract: <a href={`${explorerBase}/address/${circleAddress}`} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline inline-flex items-center gap-1">{circleAddress} <ExternalLink className="w-3 h-3" /></a>
+                Contract: <a href={`${explorerBase}/address/${circleAddress}`} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline inline-flex items-center gap-1">{circleAddress} <ExternalLink className="w-3 h-3" /></a>
               </span>
               {tapeOutCircuitId && (
-                <span className="inline-flex items-center gap-1 text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
-                  <Cpu className="w-3 h-3" /> TapeOut Circuit: #{tapeOutCircuitId.substring(0, 8)}... ({tapeOutProcessor})
+                <span className="inline-flex items-center gap-1 text-purple-300 bg-purple-500/10 px-2.5 py-0.5 rounded-full border border-purple-500/20 max-w-[280px] truncate">
+                  <Cpu className="w-3 h-3 flex-shrink-0 text-purple-400" />
+                  <span className="truncate">TapeOut: #{tapeOutCircuitId.substring(0, 8)}... ({formatProcessorLabel(tapeOutProcessor)})</span>
                 </span>
               )}
             </div>
@@ -799,28 +823,30 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
       )}
 
       {/* ─── THE EXERCISE BOOK LEDGER TABLE ─── */}
-      <div className="bg-[#121824] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+      <div className="bg-[#0e1726]/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl border-l-4 border-l-rose-500/70 backdrop-blur-md relative">
+        <AnkaraPattern className="text-emerald-400 opacity-[0.02]" />
+
+        <div className="p-5 border-b border-slate-800 flex items-center justify-between relative z-10">
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-blue-400" />
+              <BookOpen className="w-4 h-4 text-emerald-400" />
               <span>Exercise Book Member Ledger</span>
             </h3>
             <p className="text-xs text-slate-400">Order of turns, deposit coverage, and current payment status</p>
           </div>
-          <span className="text-xs font-mono text-slate-400">
-            {members.length} {members.length === 1 ? 'member' : 'members'} signed
+          <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+            {members.length} {members.length === 1 ? 'member' : 'members'} signed in book
           </span>
         </div>
 
         {members.length === 0 ? (
-          <div className="p-12 text-center text-xs text-slate-500">
+          <div className="p-12 text-center text-xs text-slate-500 font-mono relative z-10">
             No members have signed this exercise book yet. Share the invite link to get started!
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto relative z-10">
             <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-900/80 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
+              <thead className="bg-slate-900/90 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
                 <tr>
                   <th className="px-5 py-3 font-semibold">Turn #</th>
                   <th className="px-5 py-3 font-semibold">Member Name & Address</th>
@@ -829,23 +855,23 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
                   <th className="px-5 py-3 font-semibold text-right">Payout Turn Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/80">
+              <tbody className="divide-y divide-blue-900/30">
                 {members.map((m) => {
                   const isCurrentCollector = status === 'ACTIVE' && m.slot === currentTurn;
                   const isPastCollector = m.slot < currentTurn;
 
                   return (
-                    <tr key={m.slot} className="hover:bg-slate-900/40 transition">
+                    <tr key={m.slot} className="hover:bg-slate-900/50 transition">
                       <td className="px-5 py-3.5 font-bold font-mono text-white">
                         Turn #{m.slot}
                       </td>
                       <td className="px-5 py-3.5">
-                        <div className="font-bold text-white text-xs">{m.name}</div>
+                        <div className="font-serif italic font-semibold text-amber-200 text-sm tracking-wide">{m.name}</div>
                         <a
                           href={`${explorerBase}/address/${m.address}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="font-mono text-[10px] text-slate-400 hover:text-blue-400 transition"
+                          className="font-mono text-[10px] text-slate-400 hover:text-emerald-400 transition"
                         >
                           {m.address.substring(0, 8)}...{m.address.substring(m.address.length - 6)}
                         </a>
@@ -858,32 +884,24 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
                       </td>
                       <td className="px-5 py-3.5">
                         {status === 'OPEN' ? (
-                          <span className="text-slate-500 italic">Book forming</span>
+                          <span className="text-slate-500 italic font-serif">Book forming</span>
                         ) : m.paidCurrentTurn ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold">
-                            <CheckCircle2 className="w-3 h-3" /> Paid
-                          </span>
+                          <span className="stamp-paid">PAID</span>
                         ) : m.missedCurrentTurn ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[11px] font-semibold">
-                            Missed
-                          </span>
+                          <span className="stamp-missed">MISSED</span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[11px] font-semibold">
-                            Pending
-                          </span>
+                          <span className="stamp-pending">PENDING</span>
                         )}
                       </td>
                       <td className="px-5 py-3.5 text-right font-semibold">
                         {status === 'COMPLETED' ? (
-                          <span className="text-blue-400">All Completed</span>
+                          <span className="text-blue-400 font-mono text-xs">All Completed</span>
                         ) : isCurrentCollector ? (
-                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold uppercase animate-pulse">
-                            Collecting Now
-                          </span>
+                          <span className="stamp-collecting">COLLECTING NOW</span>
                         ) : isPastCollector ? (
-                          <span className="text-slate-500 text-[11px]">Disbursed</span>
+                          <span className="text-slate-500 text-[11px] font-mono">Disbursed</span>
                         ) : (
-                          <span className="text-slate-400 text-[11px]">Queued</span>
+                          <span className="text-slate-400 text-[11px] font-mono">Queued</span>
                         )}
                       </td>
                     </tr>
