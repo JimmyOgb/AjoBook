@@ -6,6 +6,15 @@
 
 ---
 
+## 🌟 Live Links & Core Resources
+
+- 🌐 **Live Vercel Production dApp:** **[https://ajochain-mu.vercel.app](https://ajochain-mu.vercel.app)**
+- 💻 **GitHub Repository:** **[https://github.com/JimmyOgb/AjoChain](https://github.com/JimmyOgb/AjoChain)**
+- 🔗 **Verified Live 5-Minute Demo Circle on OKLink:** **[`0x4c2d10851889cf992e4b6a8e12508dcdc11e1642`](https://www.oklink.com/x-layer-testnet/address/0x4c2d10851889cf992e4b6a8e12508dcdc11e1642)**
+- 🏭 **AjoFactory on OKLink:** **[`0x138AA4E744d55898D40184526d8Fec60bbd61452`](https://www.oklink.com/x-layer-testnet/address/0x138AA4E744d55898D40184526d8Fec60bbd61452)**
+
+---
+
 ## 🌟 Executive Summary & Problem Statement
 
 ### The Problem: The Human Collector Dilemma
@@ -34,15 +43,24 @@ All contracts are deployed live, verified, and operational on **X Layer Testnet 
 | Contract | Address on X Layer Testnet | OKLink Block Explorer |
 | :--- | :--- | :--- |
 | **AjoFactory** | `0x138AA4E744d55898D40184526d8Fec60bbd61452` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0x138AA4E744d55898D40184526d8Fec60bbd61452) |
+| **Verified Live Demo Circle** (*Live Verification Circle*) | `0x4c2d10851889cf992e4b6a8e12508dcdc11e1642` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0x4c2d10851889cf992e4b6a8e12508dcdc11e1642) |
 | **Seed AjoCircle** (*Lagos Founders Ajo*) | `0x20f4F33Ff40DC6dAA1B8DCeE8A0916e79608fB20` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0x20f4F33Ff40DC6dAA1B8DCeE8A0916e79608fB20) |
 | **TestUSDT** (6-Dec Faucet) | `0x923E34aCfa31b25F49fa9533484198dD12761fa6` | [View on OKLink](https://www.oklink.com/x-layer-testnet/address/0x923E34aCfa31b25F49fa9533484198dD12761fa6) |
 
-### Live On-Chain Interactions for Judges
-| Action | Transaction Hash | Details |
-| :--- | :--- | :--- |
-| **1. Factory Deployment** | `0x19aeef9d1c7f5f909193796d11e51b229eb908d0032f6ae64d6db386629734e7` | Deployed `AjoFactory` and created Seed Circle |
-| **2. Approve TestUSDT** | `0x12c972b085b4d6eca1886f3054c2f7a1b58552fbd3b67f5ffae5ca461cb45fb0` | Approved 1,000 USDT to Seed Circle |
-| **3. Live Join (Slot 1)** | `0xd9dd81b2881021c4500c2227e68968dd4b0ca7e19494899d31d2c3382907ea31` | Signed *"Tunde (Host)"* to Slot #1 with 100 USDT deposit locked |
+### Complete Live On-Chain Lifecycle Proofs (Ada, Chidi, Ngozi)
+
+Executed live on-chain with zero simulations against circle `0x4c2d10851889cf992e4b6a8e12508dcdc11e1642`:
+
+| # | Action | Transaction Hash | OKLink Explorer Link | Verified State & Invariant Result |
+| :-: | :--- | :--- | :--- | :--- |
+| **1** | **Create Circle** | `0x75b3c10c...` | [View Tx](https://www.oklink.com/x-layer-testnet/tx/0x75b3c10c7c8845f1f70d6f91f970e5c32d7ea32814c9491cf189d3495b96b969) | Deployed 5-minute circle with `10 USDT` turns |
+| **2** | **Ada Joins (Slot 1)** | `0x7ecfea5f...` | [View Tx](https://www.oklink.com/x-layer-testnet/tx/0x7ecfea5fd17ba8ac2407302065cb25b855a4eb800a3347176df0c7bd957e832c) | Signed *"Ada"*, Slot #1 assigned, `10 USDT` deposit locked |
+| **3** | **Chidi Joins (Slot 2)** | `0x5e129182...` | [View Tx](https://www.oklink.com/x-layer-testnet/tx/0x5e12918217263cef9f62b33d93662d679bee0767ed245b8c72f73dbd2d776fc0) | Signed *"Chidi"*, Slot #2 assigned, `10 USDT` deposit locked |
+| **4** | **Host Starts Circle** | `0x9f674cc6...` | [View Tx](https://www.oklink.com/x-layer-testnet/tx/0x9f674cc66fd4367328c987bfdf9583712b8a5b5124649de96b84a265a9fddf77) | Circle transitioned to `ACTIVE`, Turn #1 began |
+| **5** | **Ada Contributes** | `0x2462cd00...` | [View Tx](https://www.oklink.com/x-layer-testnet/tx/0x2462cd00670f32bbc6f1ba4bddc93f475e7808a48bf1014180dd08729679204b) | Contributed `10 USDT` for Turn 1 |
+| **6** | **Chidi Contributes & Auto-Payout** | `0x56524848...` | [View Tx](https://www.oklink.com/x-layer-testnet/tx/0x56524848b052e30442a3a55c351a4ebf99a9f909132a30001e693508da9df8c0) | **`19.90 USDT` net pot automatically paid to Ada**; Turn #2 started |
+| **7** | **Ngozi Joins Late** | `0x932c55b7...` | [View Tx](https://www.oklink.com/x-layer-testnet/tx/0x932c55b75c73d8f723ef8bd63854f813f547b1fd983e3161442f9cb7079d8f69) | Paid `10 USDT` deposit + `10 USDT` catch-up; **Ada credited `10 USDT`** |
+| **8** | **Ada Claims Catch-Up** | `0xd939899f...` | [View Tx](https://www.oklink.com/x-layer-testnet/tx/0xd939899f790b513a85764a940833003b8bf66aab5cb2d2c7518691560e26dfba) | Ada withdrew `10 USDT` catch-up balance; vault updated |
 
 ---
 
