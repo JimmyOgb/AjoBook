@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain, useWriteContract } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from 'wagmi';
 import { ShieldCheck, Coins, Wallet, LogOut, CheckCircle2, ChevronDown, Cpu, X } from 'lucide-react';
 import { xLayerMainnet, xLayerTestnet } from '../config/chains';
 import { Erc20Abi } from '../contracts/abis';
@@ -20,18 +20,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenTapeOutDrawer }) => {
   const [mintSuccess, setMintSuccess] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
 
-  const { writeContractAsync } = useWriteContract();
   const activeDeployments = getDeployment(chainId);
-  const { requireReadyWallet } = useWalletGuard();
+  const { ensureAuthorizedWallet } = useWalletGuard();
 
   const handleMintTestUsdt = async () => {
     try {
       setIsMinting(true);
       setMintSuccess(false);
-      const { account, chain } = await requireReadyWallet();
+      const { walletClient, account, chain } = await ensureAuthorizedWallet();
 
       // Mint 1,000 USDT (6 decimals = 1,000,000,000 units)
-      await writeContractAsync({
+      await walletClient.writeContract({
         account,
         chain,
         address: activeDeployments.testUsdt as `0x${string}`,

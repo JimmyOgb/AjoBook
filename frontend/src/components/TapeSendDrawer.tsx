@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useChainId, useAccount, useSignMessage } from 'wagmi';
+import { useChainId, useAccount } from 'wagmi';
 import { X, ShieldCheck, Cpu, Lock, CheckCircle2, Copy, AlertCircle, PenTool } from 'lucide-react';
 import { Tap10Message, createTap10Envelope, verifyDeWebIntegrityLive } from '../tapeout/tapekit';
 import { getDeployment } from '../config/deployments';
@@ -20,8 +20,7 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
 }) => {
   const chainId = useChainId();
   const { address, isConnected } = useAccount();
-  const { signMessageAsync, isPending: isSigning } = useSignMessage();
-  const { requireReadyWallet } = useWalletGuard();
+  const { ensureAuthorizedWallet } = useWalletGuard();
   const activeDeployments = getDeployment(chainId);
   const effectiveContainer = targetContainer || activeDeployments.tapeOutContainer;
   const effectiveCircuitId = circuitId || activeDeployments.tapeOutCircuitId;
@@ -69,9 +68,9 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
 
     try {
       setIsSubmitting(true);
-      const { account } = await requireReadyWallet();
+      const { walletClient, account } = await ensureAuthorizedWallet();
 
-      const signature = await signMessageAsync({
+      const signature = await walletClient.signMessage({
         account,
         message: `AjoChain TapeSend TAP-10 Note\nType: ${msgType}\nTarget: ${effectiveContainer}\nPayload: ${messageText.trim()}`,
       });
@@ -288,11 +287,11 @@ export const TapeSendDrawer: React.FC<TapeSendDrawerProps> = ({
             {isConnected ? (
               <button
                 type="submit"
-                disabled={!messageText.trim() || isSubmitting || isSigning}
+                disabled={!messageText.trim() || isSubmitting}
                 className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 disabled:opacity-50 cursor-pointer"
               >
                 <PenTool className="w-3.5 h-3.5" />
-                <span>{isSigning ? 'Signing Note...' : 'Sign & Post Note'}</span>
+                <span>{isSubmitting ? 'Signing Note...' : 'Sign & Post Note'}</span>
               </button>
             ) : (
               <div className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-center text-xs text-slate-400">

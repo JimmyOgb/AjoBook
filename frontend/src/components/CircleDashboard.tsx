@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAccount, useWriteContract, usePublicClient, useChainId, useSwitchChain } from 'wagmi';
+import { useAccount, usePublicClient, useChainId, useSwitchChain } from 'wagmi';
 import {
   Clock,
   Coins,
@@ -51,9 +51,8 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
   const chainId = useChainId();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
   const publicClient = usePublicClient();
-  const { writeContractAsync } = useWriteContract();
   const activeDeployments = getDeployment(chainId);
-  const { requireReadyWallet } = useWalletGuard();
+  const { ensureAuthorizedWallet } = useWalletGuard();
 
   // On-chain state
   const [circleName, setCircleName] = useState<string>('Ajo Exercise Book');
@@ -270,11 +269,11 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
     try {
       setIsSubmitting(true);
       setErrorNotice(null);
-      const { account, chain } = await requireReadyWallet();
+      const { walletClient, account, chain } = await ensureAuthorizedWallet();
 
       // Approve deposit if required
       if (requireDeposit) {
-        await writeContractAsync({
+        const approveTx = await walletClient.writeContract({
           address: activeDeployments.usdt as `0x${string}`,
           abi: Erc20Abi,
           functionName: 'approve',
@@ -282,9 +281,12 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
           account,
           chain,
         });
+        if (publicClient) {
+          await publicClient.waitForTransactionReceipt({ hash: approveTx });
+        }
       }
 
-      await writeContractAsync({
+      const tx = await walletClient.writeContract({
         address: circleAddress as `0x${string}`,
         abi: AjoCircleAbi,
         functionName: 'joinCircle',
@@ -292,6 +294,10 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
         account,
         chain,
       });
+
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash: tx });
+      }
 
       setActionNotice(`Welcome, ${joinName}! Added to the exercise book.`);
       setJoinName('');
@@ -307,15 +313,20 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
     try {
       setIsSubmitting(true);
       setErrorNotice(null);
-      const { account, chain } = await requireReadyWallet();
+      const { walletClient, account, chain } = await ensureAuthorizedWallet();
 
-      await writeContractAsync({
+      const tx = await walletClient.writeContract({
         address: circleAddress as `0x${string}`,
         abi: AjoCircleAbi,
         functionName: 'startCircle',
         account,
         chain,
       });
+
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash: tx });
+      }
+
       setActionNotice('Exercise book started! Turn #1 is live.');
       await fetchCircleData();
     } catch (err: any) {
@@ -329,10 +340,10 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
     try {
       setIsSubmitting(true);
       setErrorNotice(null);
-      const { account, chain } = await requireReadyWallet();
+      const { walletClient, account, chain } = await ensureAuthorizedWallet();
 
       // Approve contribution
-      await writeContractAsync({
+      const approveTx = await walletClient.writeContract({
         address: activeDeployments.usdt as `0x${string}`,
         abi: Erc20Abi,
         functionName: 'approve',
@@ -341,13 +352,21 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
         chain,
       });
 
-      await writeContractAsync({
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash: approveTx });
+      }
+
+      const tx = await walletClient.writeContract({
         address: circleAddress as `0x${string}`,
         abi: AjoCircleAbi,
         functionName: 'contribute',
         account,
         chain,
       });
+
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash: tx });
+      }
 
       setActionNotice(`Turn #${currentTurn} contribution of ${contributionAmount} USDT paid!`);
       await fetchCircleData();
@@ -362,28 +381,38 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
     try {
       setIsSubmitting(true);
       setErrorNotice(null);
-      const { account, chain } = await requireReadyWallet();
+      const { walletClient, account, chain } = await ensureAuthorizedWallet();
 
-      await writeContractAsync({
+      const tx = await walletClient.writeContract({
         address: circleAddress as `0x${string}`,
         abi: AjoCircleAbi,
         functionName: 'releaseTurnPayout',
         account,
         chain,
       });
+
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash: tx });
+      }
+
       setActionNotice(`Turn #${currentTurn} scheduled pot disbursed to collector! Next turn timer started.`);
       await fetchCircleData();
     } catch (err: any) {
       // Fallback to closeTurn if contract was deployed with older ABI alias
       try {
-        const { account, chain } = await requireReadyWallet();
-        await writeContractAsync({
+        const { walletClient, account, chain } = await ensureAuthorizedWallet();
+        const tx = await walletClient.writeContract({
           address: circleAddress as `0x${string}`,
           abi: AjoCircleAbi,
           functionName: 'closeTurn',
           account,
           chain,
         });
+
+        if (publicClient) {
+          await publicClient.waitForTransactionReceipt({ hash: tx });
+        }
+
         setActionNotice(`Turn #${currentTurn} settled! Pot disbursed and advanced.`);
         await fetchCircleData();
       } catch (err2: any) {
@@ -402,7 +431,7 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
     try {
       setIsSubmitting(true);
       setErrorNotice(null);
-      const { account, chain } = await requireReadyWallet();
+      const { walletClient, account, chain } = await ensureAuthorizedWallet();
 
       const completedTurns = currentTurn - 1;
       const catchUpAmount = completedTurns * contributionAmount;
@@ -410,7 +439,7 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
       const totalDue = catchUpAmount + depositAmount;
 
       if (totalDue > 0) {
-        await writeContractAsync({
+        const approveTx = await walletClient.writeContract({
           address: activeDeployments.usdt as `0x${string}`,
           abi: Erc20Abi,
           functionName: 'approve',
@@ -418,9 +447,13 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
           account,
           chain,
         });
+
+        if (publicClient) {
+          await publicClient.waitForTransactionReceipt({ hash: approveTx });
+        }
       }
 
-      await writeContractAsync({
+      const tx = await walletClient.writeContract({
         address: circleAddress as `0x${string}`,
         abi: AjoCircleAbi,
         functionName: 'joinLate',
@@ -428,6 +461,10 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
         account,
         chain,
       });
+
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash: tx });
+      }
 
       setActionNotice(`Welcome late joiner ${lateJoinName}! Catch-up paid to prior turn collectors.`);
       setLateJoinName('');
@@ -443,15 +480,20 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
     try {
       setIsSubmitting(true);
       setErrorNotice(null);
-      const { account, chain } = await requireReadyWallet();
+      const { walletClient, account, chain } = await ensureAuthorizedWallet();
 
-      await writeContractAsync({
+      const tx = await walletClient.writeContract({
         address: circleAddress as `0x${string}`,
         abi: AjoCircleAbi,
         functionName: 'claimPending',
         account,
         chain,
       });
+
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash: tx });
+      }
+
       setActionNotice('Claimed pending catch-up balance to your wallet!');
       await fetchCircleData();
     } catch (err: any) {
@@ -465,15 +507,20 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
     try {
       setIsSubmitting(true);
       setErrorNotice(null);
-      const { account, chain } = await requireReadyWallet();
+      const { walletClient, account, chain } = await ensureAuthorizedWallet();
 
-      await writeContractAsync({
+      const tx = await walletClient.writeContract({
         address: circleAddress as `0x${string}`,
         abi: AjoCircleAbi,
         functionName: 'withdrawDeposit',
         account,
         chain,
       });
+
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash: tx });
+      }
+
       setActionNotice('Unused security deposit returned to your wallet!');
       await fetchCircleData();
     } catch (err: any) {

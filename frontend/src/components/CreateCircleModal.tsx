@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useWriteContract, useChainId, usePublicClient, useSwitchChain } from 'wagmi';
+import { useChainId, usePublicClient, useSwitchChain } from 'wagmi';
 import { X, Shield, Cpu, ArrowRight, ArrowLeft, Sparkles, Clock, UserCheck, AlertTriangle } from 'lucide-react';
 import { AjoFactoryAbi } from '../contracts/abis';
 import { getDeployment } from '../config/deployments';
@@ -26,13 +26,12 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
   const [maxMembers, setMaxMembers] = useState('4');
   const [requireDeposit, setRequireDeposit] = useState(true);
   const [circuitId, setCircuitId] = useState<string>(activeDeployments.tapeOutCircuitId);
-  const [processor, setProcessor] = useState('LAGOS_ARM');
-  const [containerAddr, setContainerAddr] = useState<string>(activeDeployments.tapeOutContainer);
+  const [processor, setProcessor] = useState('');
+  const [containerAddr, setContainerAddr] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const { writeContractAsync } = useWriteContract();
-  const { requireReadyWallet } = useWalletGuard();
+  const { ensureAuthorizedWallet } = useWalletGuard();
 
   if (!isOpen) return null;
 
@@ -41,7 +40,7 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
       setIsSubmitting(true);
       setErrorMsg(null);
 
-      const { account, chain } = await requireReadyWallet();
+      const { walletClient, account, chain } = await ensureAuthorizedWallet();
 
       const contributionAmount = BigInt(Math.floor(parseFloat(contribution) * 1e6));
       const turnDuration = BigInt(cadenceSeconds);
@@ -49,12 +48,23 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
       const protocolFeeBps = BigInt(50); // 0.5%
       const feeCollector = account;
 
-      // Convert processor string to bytes32
+      // Convert processor string to bytes32 (default to 'NONE' if blank)
+      const effectiveProcessor = processor.trim() || 'NONE';
       const encoder = new TextEncoder();
-      const bytes = encoder.encode(processor.padEnd(32, '\0')).slice(0, 32);
+      const bytes = encoder.encode(effectiveProcessor.padEnd(32, '\0')).slice(0, 32);
       const processorBytes32 = ('0x' + Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')) as `0x${string}`;
 
-      const tx = await writeContractAsync({
+      // Default containerAddress to zero address if blank or not standard 42-char hex
+      const trimmedContainer = containerAddr.trim();
+      const validContainerAddr: `0x${string}` = (trimmedContainer.startsWith('0x') && trimmedContainer.length === 42)
+        ? (trimmedContainer as `0x${string}`)
+        : '0x0000000000000000000000000000000000000000';
+
+      const validCircuitId: `0x${string}` = (circuitId.trim().startsWith('0x') && circuitId.trim().length === 66)
+        ? (circuitId.trim() as `0x${string}`)
+        : (activeDeployments.tapeOutCircuitId as `0x${string}` || '0x0000000000000000000000000000000000000000000000000000000000000000');
+
+      const tx = await walletClient.writeContract({
         account,
         chain,
         address: activeDeployments.factory as `0x${string}`,
@@ -70,13 +80,13 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
           requireDeposit,
           protocolFeeBps,
           feeCollector,
-          (circuitId || '0x0000000000000000000000000000000000000000000000000000000000000000') as `0x${string}`,
+          validCircuitId,
           processorBytes32,
-          (containerAddr || '0x0000000000000000000000000000000000000000') as `0x${string}`,
+          validContainerAddr,
         ],
       });
 
-      console.log('Circle created on X Layer:', tx);
+      console.log('Circle created on X Layer with tx hash:', tx);
 
       let createdCircleAddress: string = activeDeployments.seedCircle;
       if (publicClient) {
@@ -289,22 +299,26 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Processor / Region</label>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Processor / Region (Optional)</label>
                   <input
                     type="text"
                     value={processor}
+                    placeholder="e.g. LAGOS_ARM"
                     onChange={(e) => setProcessor(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none focus:border-blue-500"
                   />
+                  <p className="text-[10px] text-slate-500 mt-1">Netlist instruction processor identifier</p>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Container Address</label>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Container Address (Optional)</label>
                   <input
                     type="text"
                     value={containerAddr}
+                    placeholder="0x0000... (leave blank if unlinked)"
                     onChange={(e) => setContainerAddr(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none focus:border-blue-500"
                   />
+                  <p className="text-[10px] text-slate-500 mt-1">Defaults to 0x0000... if left blank</p>
                 </div>
               </div>
             </div>
