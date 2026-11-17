@@ -23,3 +23,5 @@ dist/
 Thumbs.db
 *.swp
 *.bak
+
+.vercel
