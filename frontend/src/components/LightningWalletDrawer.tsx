@@ -1,0 +1,340 @@
+import React, { useState } from 'react';
+import {
+  X,
+  Wallet,
+  Zap,
+  Key,
+  Copy,
+  Check,
+  RefreshCw,
+  ExternalLink,
+  ShieldCheck,
+  Globe2,
+  QrCode
+} from 'lucide-react';
+import { useWallet, Currency } from '../context/WalletContext';
+import { QRCodeSvg } from './QRCodeSvg';
+
+export const LightningWalletDrawer: React.FC = () => {
+  const {
+    npub,
+    isNip07Available,
+    connectNip07,
+    generateNewIdentity,
+    walletType,
+    setWalletType,
+    balanceSats,
+    nwcUrl,
+    connectNwc,
+    disconnectNwc,
+    resetDemoWallet,
+    currency,
+    setCurrency,
+    formatAmount,
+    isWalletDrawerOpen,
+    closeWalletDrawer
+  } = useWallet();
+
+  const [inputNwc, setInputNwc] = useState('');
+  const [nwcStatus, setNwcStatus] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [showReceiveQr, setShowReceiveQr] = useState<boolean>(false);
+  const [receiveAmount, setReceiveAmount] = useState('10000');
+
+  if (!isWalletDrawerOpen) return null;
+
+  const copyToClipboard = (text: string, keyName: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(keyName);
+    setTimeout(() => setCopiedKey(null), 2500);
+  };
+
+  const handleConnectNwc = async () => {
+    if (!inputNwc.trim()) return;
+    setNwcStatus('Connecting to NWC relay...');
+    const ok = await connectNwc(inputNwc.trim());
+    if (ok) {
+      setNwcStatus('Connected successfully!');
+      setInputNwc('');
+      setTimeout(() => setNwcStatus(null), 2500);
+    } else {
+      setNwcStatus('Connection failed. Please check your NWC URI.');
+    }
+  };
+
+  const demoReceiveInvoice = `lnbc${receiveAmount}0n1p9ajobook${npub.substring(0, 8)}receive00000000000000000000000000000000`;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-hidden bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+        <div className="w-screen max-w-md bg-[#121824] border-l border-slate-800 p-6 flex flex-col shadow-2xl text-slate-100 overflow-y-auto">
+          
+          {/* Header */}
+          <div className="flex items-center justify-between pb-5 border-b border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                <Zap className="w-5 h-5 fill-amber-400/20" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-white">AjoBook Lightning Wallet</h3>
+                <p className="text-xs text-slate-400">Non-Custodial ROSCA Settlement</p>
+              </div>
+            </div>
+            <button
+              onClick={closeWalletDrawer}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="py-5 space-y-6 flex-1">
+
+            {/* Currency Selector */}
+            <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Globe2 className="w-3.5 h-3.5 text-blue-400" />
+                  Display Currency
+                </span>
+                <span className="text-[11px] text-slate-500">West African Rates</span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-950 rounded-lg border border-slate-800">
+                {(['SATS', 'NGN', 'XOF'] as Currency[]).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setCurrency(c)}
+                    className={`py-1.5 text-xs font-bold rounded-md transition cursor-pointer ${
+                      currency === c
+                        ? 'bg-amber-500 text-slate-950 shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {c === 'SATS' ? '⚡ SATS' : c === 'NGN' ? '₦ NGN' : 'CFA XOF'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Wallet Balance Card */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/15 via-slate-900 to-slate-900 border border-amber-500/30 shadow-lg">
+              <div className="flex items-center justify-between text-xs text-amber-400 font-semibold mb-1">
+                <span className="flex items-center gap-1.5">
+                  <Wallet className="w-4 h-4" />
+                  {walletType === 'DEMO' ? 'Instant Demo Lightning Wallet' : 'NWC Remote Wallet'}
+                </span>
+                <span className="text-[10px] uppercase px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 font-mono">
+                  {walletType}
+                </span>
+              </div>
+              
+              <div className="mt-2">
+                <div className="text-3xl font-black text-white tracking-tight font-mono">
+                  {formatAmount(balanceSats)}
+                </div>
+                {currency !== 'SATS' && (
+                  <p className="text-xs text-amber-300/80 font-mono mt-0.5">
+                    ≈ {balanceSats.toLocaleString()} Satoshis
+                  </p>
+                )}
+              </div>
+
+              {/* Action Buttons: Receive QR & Reset */}
+              <div className="mt-4 pt-3 border-t border-amber-500/20 flex items-center justify-between gap-2">
+                <button
+                  onClick={() => setShowReceiveQr(!showReceiveQr)}
+                  className="text-xs text-amber-300 hover:text-white flex items-center gap-1 transition font-medium cursor-pointer"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>{showReceiveQr ? 'Hide Receive QR' : 'Receive Sats QR'}</span>
+                </button>
+
+                {walletType === 'DEMO' && (
+                  <button
+                    onClick={resetDemoWallet}
+                    className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 transition font-medium cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Reset 100k Sats
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Receive Sats QR Panel */}
+            {showReceiveQr && (
+              <div className="p-4 rounded-xl bg-slate-950 border border-amber-500/30 flex flex-col items-center text-center space-y-3 animate-in fade-in">
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    Receive Lightning Sats
+                  </span>
+                  <div className="flex gap-1">
+                    {['5000', '10000', '50000'].map((amt) => (
+                      <button
+                        key={amt}
+                        onClick={() => setReceiveAmount(amt)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-mono cursor-pointer ${
+                          receiveAmount === amt ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-slate-900 text-slate-400'
+                        }`}
+                      >
+                        {Number(amt).toLocaleString()} sats
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-3 bg-white rounded-xl shadow-md">
+                  <QRCodeSvg value={`lightning:${demoReceiveInvoice}`} size={160} />
+                </div>
+                <div className="w-full text-left">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                    <span>Invoice String:</span>
+                    <button
+                      onClick={() => copyToClipboard(demoReceiveInvoice, 'invoice')}
+                      className="text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      {copiedKey === 'invoice' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedKey === 'invoice' ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+                  <p className="p-2 rounded-lg bg-slate-900 border border-slate-800 font-mono text-[10px] text-slate-400 break-all max-h-14 overflow-y-auto">
+                    {demoReceiveInvoice}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Mode Switcher: Demo vs NWC */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                  Wallet Mode
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setWalletType('DEMO')}
+                    className={`px-2.5 py-1 text-xs rounded-lg transition cursor-pointer font-medium ${
+                      walletType === 'DEMO'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    1-Click Demo
+                  </button>
+                  <button
+                    onClick={() => setWalletType('NWC')}
+                    className={`px-2.5 py-1 text-xs rounded-lg transition cursor-pointer font-medium ${
+                      walletType === 'NWC'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    NWC Protocol
+                  </button>
+                </div>
+              </div>
+
+              {walletType === 'NWC' && (
+                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Connect your self-custodial Alby Hub, LNbits, or Umbrel node via Nostr Wallet Connect (NIP-47).
+                  </p>
+                  {nwcUrl ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <ShieldCheck className="w-4 h-4" /> NWC Active
+                        </span>
+                        <button
+                          onClick={disconnectNwc}
+                          className="text-rose-400 hover:underline cursor-pointer"
+                        >
+                          Disconnect
+                        </button>
+                      </div>
+                      <p className="text-[11px] font-mono text-slate-500 truncate">
+                        {nwcUrl}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <input
+                        type="password"
+                        placeholder="nostr+walletconnect://..."
+                        value={inputNwc}
+                        onChange={(e) => setInputNwc(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-white placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                      />
+                      <button
+                        onClick={handleConnectNwc}
+                        className="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition cursor-pointer"
+                      >
+                        Connect NWC Wallet
+                      </button>
+                      {nwcStatus && (
+                        <p className="text-xs text-amber-400 text-center">{nwcStatus}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Nostr Identity Panel */}
+            <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-purple-400" />
+                  Nostr Identity
+                </span>
+                <button
+                  onClick={generateNewIdentity}
+                  className="text-[11px] text-purple-400 hover:underline cursor-pointer"
+                >
+                  Regenerate
+                </button>
+              </div>
+
+              {/* npub */}
+              <div>
+                <label className="text-[11px] text-slate-400 font-semibold block mb-1">
+                  Public Key (npub)
+                </label>
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-950 border border-slate-800 font-mono text-xs text-slate-300">
+                  <span className="truncate flex-1">{npub}</span>
+                  <button
+                    onClick={() => copyToClipboard(npub, 'npub')}
+                    className="text-slate-400 hover:text-white transition cursor-pointer"
+                  >
+                    {copiedKey === 'npub' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* NIP-07 Extension connection if present */}
+              {isNip07Available && (
+                <button
+                  onClick={connectNip07}
+                  className="w-full py-2 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Connect Browser Extension (Alby / nos2x)
+                </button>
+              )}
+            </div>
+
+            {/* BTrust Judge Quick-Test Guide */}
+            <div className="p-4 rounded-xl bg-blue-950/30 border border-blue-800/40 text-xs text-blue-200 space-y-2">
+              <div className="font-bold text-white flex items-center gap-1.5">
+                <span>⚡ BTrust Judge Quick-Start</span>
+              </div>
+              <p className="leading-relaxed text-blue-300/90 text-[11px]">
+                Your <strong>1-Click Demo Lightning Wallet</strong> has <strong>100,000 sats</strong> ready. You don't need to install any extension or fund real sats to test the full Ajo rotation, BOLT11 invoices, and autonomous payouts.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

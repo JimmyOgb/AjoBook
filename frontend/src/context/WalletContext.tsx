@@ -1,309 +1,273 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { useDisconnect } from 'wagmi';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { nip19 } from 'nostr-tools';
+import { nwc } from '@getalby/sdk';
 
-export interface EIP6963ProviderInfo {
-  uuid: string;
-  name: string;
-  icon: string;
-  rdns: string;
-}
+export type Currency = 'SATS' | 'NGN' | 'XOF';
 
-export interface EIP6963ProviderDetail {
-  info: EIP6963ProviderInfo;
-  provider: any;
-}
+export type WalletType = 'DEMO' | 'NWC' | 'NIP07';
 
 export interface WalletContextType {
-  providers: EIP6963ProviderDetail[];
-  selectedRdns: string | null;
-  activeProvider: any | null;
-  activeAccount: string | null;
-  activeChainId: number | null;
-  isConnected: boolean;
-  selectWallet: (rdns: string) => Promise<string | null>;
-  disconnectWallet: () => void;
-  resetWalletSession: () => void;
-  getActiveProvider: () => Promise<{ provider: any; account: string }>;
+  // Nostr Identity
+  npub: string;
+  nsec: string;
+  pubkeyHex: string;
+  isNip07Available: boolean;
+  connectNip07: () => Promise<void>;
+  generateNewIdentity: () => void;
+  importNsec: (nsecKey: string) => boolean;
+
+  // Lightning Wallet
+  walletType: WalletType;
+  setWalletType: (type: WalletType) => void;
+  balanceSats: number;
+  nwcUrl: string;
+  setNwcUrl: (url: string) => void;
+  connectNwc: (url: string) => Promise<boolean>;
+  disconnectNwc: () => void;
+  resetDemoWallet: () => void;
+  payInvoice: (bolt11: string, amountSats: number) => Promise<{ preimage: string }>;
+
+  // Currency & Display
+  currency: Currency;
+  setCurrency: (currency: Currency) => void;
+  formatAmount: (sats: number) => string;
+
+  // Wallet Drawer
+  isWalletDrawerOpen: boolean;
+  openWalletDrawer: () => void;
+  closeWalletDrawer: () => void;
 }
 
 const WalletContext = createContext<WalletContextType | null>(null);
 
-const STORAGE_KEY = 'ajochain_selected_rdns';
+const NOSTR_SEC_STORAGE_KEY = 'ajobook_nostr_sec_hex';
+const DEMO_BALANCE_STORAGE_KEY = 'ajobook_demo_wallet_sats';
+const NWC_URL_STORAGE_KEY = 'ajobook_nwc_url';
+const CURRENCY_STORAGE_KEY = 'ajobook_preferred_currency';
+
+const DEFAULT_DEMO_SATS = 100000; // 100,000 sats initial test balance
+
+// Realistic market conversion rates
+// 1 BTC ≈ $95,000 USD = 100M sats -> 1 sat ≈ $0.00095 USD
+// 1 USD ≈ 1,500 NGN -> 1 sat ≈ 1.425 NGN
+// 1 USD ≈ 620 XOF (CFA) -> 1 sat ≈ 0.589 XOF
+const SATS_TO_NGN_RATE = 1.425;
+const SATS_TO_XOF_RATE = 0.589;
 
 export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { disconnect } = useDisconnect();
-  const [providers, setProviders] = useState<EIP6963ProviderDetail[]>([]);
-  const [selectedRdns, setSelectedRdns] = useState<string | null>(() => {
+  // ─── 1. Nostr Identity ────────────────────────────────────────────────
+  const [secHex, setSecHex] = useState<string>(() => {
     try {
-      return typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
-    } catch {
-      return null;
-    }
+      const stored = localStorage.getItem(NOSTR_SEC_STORAGE_KEY);
+      if (stored && stored.length === 64) return stored;
+    } catch {}
+    const fresh = generateSecretKey();
+    const hex = bytesToHex(fresh);
+    try { localStorage.setItem(NOSTR_SEC_STORAGE_KEY, hex); } catch {}
+    return hex;
   });
-  const [activeAccount, setActiveAccount] = useState<string | null>(null);
-  const [activeChainId, setActiveChainId] = useState<number | null>(null);
 
-  // 1. EIP-6963 Provider Discovery
+  const [npub, setNpub] = useState<string>('');
+  const [nsec, setNsec] = useState<string>('');
+  const [pubkeyHex, setPubkeyHex] = useState<string>('');
+  const [isNip07Available, setIsNip07Available] = useState<boolean>(false);
+
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    try {
+      const secBytes = hexToBytes(secHex);
+      const pk = getPublicKey(secBytes);
+      setPubkeyHex(pk);
+      setNpub(nip19.npubEncode(pk));
+      setNsec(nip19.nsecEncode(secBytes));
+    } catch (e) {
+      console.error('Error deriving Nostr keys:', e);
+    }
+  }, [secHex]);
 
-    const discoveredMap = new Map<string, EIP6963ProviderDetail>();
-
-    const handleAnnounce = (event: any) => {
-      const detail = event?.detail as EIP6963ProviderDetail;
-      if (!detail?.info?.rdns || !detail?.provider) return;
-
-      discoveredMap.set(detail.info.rdns, detail);
-      setProviders(Array.from(discoveredMap.values()));
-    };
-
-    window.addEventListener('eip6963:announceProvider', handleAnnounce);
-    window.dispatchEvent(new Event('eip6963:requestProvider'));
-
-    // Secondary fallback: check known injected globals if not announced via EIP-6963
-    setTimeout(() => {
-      const win = window as any;
-
-      // OKX Wallet
-      if (win.okxwallet && !discoveredMap.has('com.okex.wallet')) {
-        const okxDetail: EIP6963ProviderDetail = {
-          info: {
-            uuid: 'okx-fallback',
-            name: 'OKX Wallet',
-            icon: 'https://raw.githubusercontent.com/MetaMask/contract-metadata/master/images/okx.svg',
-            rdns: 'com.okex.wallet',
-          },
-          provider: win.okxwallet,
-        };
-        discoveredMap.set('com.okex.wallet', okxDetail);
-      }
-
-      // Check window.ethereum.providers array if multiple extensions injected
-      if (Array.isArray(win.ethereum?.providers)) {
-        win.ethereum.providers.forEach((p: any) => {
-          if (p.isMetaMask && !p.isPortal && !discoveredMap.has('io.metamask')) {
-            discoveredMap.set('io.metamask', {
-              info: {
-                uuid: 'metamask-array-fallback',
-                name: 'MetaMask',
-                icon: 'https://raw.githubusercontent.com/MetaMask/brand-resources/master/SVG/metamask-fox.svg',
-                rdns: 'io.metamask',
-              },
-              provider: p,
-            });
-          }
-          if (p.isOkxWallet && !discoveredMap.has('com.okex.wallet')) {
-            discoveredMap.set('com.okex.wallet', {
-              info: {
-                uuid: 'okx-array-fallback',
-                name: 'OKX Wallet',
-                icon: '',
-                rdns: 'com.okex.wallet',
-              },
-              provider: p,
-            });
-          }
-        });
-      } else if (win.ethereum && win.ethereum.isMetaMask && !win.ethereum.isPortal && !discoveredMap.has('io.metamask')) {
-        discoveredMap.set('io.metamask', {
-          info: {
-            uuid: 'metamask-fallback',
-            name: 'MetaMask',
-            icon: 'https://raw.githubusercontent.com/MetaMask/brand-resources/master/SVG/metamask-fox.svg',
-            rdns: 'io.metamask',
-          },
-          provider: win.ethereum,
-        });
-      }
-
-      setProviders(Array.from(discoveredMap.values()));
-    }, 200);
-
-    return () => {
-      window.removeEventListener('eip6963:announceProvider', handleAnnounce);
-    };
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).nostr) {
+      setIsNip07Available(true);
+    }
   }, []);
 
-  // 2. Resolve Active Provider from selectedRdns or first non-portal available provider
-  const resolveActiveDetail = useCallback((): EIP6963ProviderDetail | null => {
-    if (providers.length === 0) return null;
+  const generateNewIdentity = useCallback(() => {
+    const fresh = generateSecretKey();
+    const hex = bytesToHex(fresh);
+    setSecHex(hex);
+    try { localStorage.setItem(NOSTR_SEC_STORAGE_KEY, hex); } catch {}
+  }, []);
 
-    if (selectedRdns) {
-      const match = providers.find((p) => p.info.rdns === selectedRdns);
-      if (match) return match;
-    }
-
-    // Default preference: MetaMask -> OKX Wallet -> any non-portal extension
-    const preferredMetaMask = providers.find((p) => p.info.rdns === 'io.metamask');
-    if (preferredMetaMask) return preferredMetaMask;
-
-    const preferredOkx = providers.find((p) => p.info.rdns === 'com.okex.wallet');
-    if (preferredOkx) return preferredOkx;
-
-    const nonPortal = providers.find((p) => !p.info.rdns.toLowerCase().includes('portal') && !p.provider?.isPortal);
-    return nonPortal || providers[0] || null;
-  }, [providers, selectedRdns]);
-
-  const activeDetail = resolveActiveDetail();
-  const activeProvider = activeDetail?.provider || null;
-
-  // 3. Listen to account & chain change events on activeProvider
-  useEffect(() => {
-    if (!activeProvider) return;
-
-    let isMounted = true;
-
-    // Check existing accounts
-    activeProvider
-      .request({ method: 'eth_accounts' })
-      .then((accounts: string[]) => {
-        if (isMounted && accounts && accounts.length > 0) {
-          setActiveAccount(accounts[0]);
+  const importNsec = useCallback((imported: string): boolean => {
+    try {
+      let hex = '';
+      if (imported.startsWith('nsec1')) {
+        const decoded = nip19.decode(imported);
+        if (decoded.type === 'nsec' && decoded.data instanceof Uint8Array) {
+          hex = bytesToHex(decoded.data);
         }
-      })
-      .catch(() => {});
+      } else if (imported.length === 64) {
+        hex = imported;
+      }
+      if (hex) {
+        setSecHex(hex);
+        localStorage.setItem(NOSTR_SEC_STORAGE_KEY, hex);
+        return true;
+      }
+    } catch (err) {
+      console.error('Failed to import nsec:', err);
+    }
+    return false;
+  }, []);
 
-    // Check existing chain
-    activeProvider
-      .request({ method: 'eth_chainId' })
-      .then((hexChain: string) => {
-        if (isMounted && hexChain) {
-          setActiveChainId(parseInt(hexChain, 16));
+  const connectNip07 = useCallback(async () => {
+    if (typeof window !== 'undefined' && (window as any).nostr) {
+      try {
+        const pk = await (window as any).nostr.getPublicKey();
+        if (pk) {
+          setPubkeyHex(pk);
+          setNpub(nip19.npubEncode(pk));
         }
-      })
-      .catch(() => {});
-
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (!isMounted) return;
-      if (accounts && accounts.length > 0) {
-        setActiveAccount(accounts[0]);
-      } else {
-        setActiveAccount(null);
+      } catch (e) {
+        console.error('NIP-07 connect failed:', e);
       }
-    };
-
-    const handleChainChanged = (hexChain: string) => {
-      if (!isMounted) return;
-      setActiveChainId(parseInt(hexChain, 16));
-    };
-
-    activeProvider.on?.('accountsChanged', handleAccountsChanged);
-    activeProvider.on?.('chainChanged', handleChainChanged);
-
-    return () => {
-      isMounted = false;
-      activeProvider.removeListener?.('accountsChanged', handleAccountsChanged);
-      activeProvider.removeListener?.('chainChanged', handleChainChanged);
-    };
-  }, [activeProvider]);
-
-  // 4. Explicitly select wallet & request accounts
-  const selectWallet = async (rdns: string): Promise<string | null> => {
-    const target = providers.find((p) => p.info.rdns === rdns);
-    if (!target) {
-      throw new Error(`Wallet extension ${rdns} is not available in this browser.`);
     }
+  }, []);
 
-    const provider = target.provider;
-    let accounts: string[] = [];
+  // ─── 2. Lightning Wallet (Demo & NWC) ─────────────────────────────────
+  const [walletType, setWalletType] = useState<WalletType>('DEMO');
+  const [demoBalance, setDemoBalance] = useState<number>(() => {
     try {
-      accounts = (await provider.request({ method: 'eth_requestAccounts' })) as string[];
-    } catch (err: any) {
-      if (err?.code === 4001) {
-        throw new Error('Connection request rejected by user in wallet.');
+      const stored = localStorage.getItem(DEMO_BALANCE_STORAGE_KEY);
+      return stored ? Number(stored) : DEFAULT_DEMO_SATS;
+    } catch {
+      return DEFAULT_DEMO_SATS;
+    }
+  });
+
+  const [nwcUrl, setNwcUrlState] = useState<string>(() => {
+    try {
+      return localStorage.getItem(NWC_URL_STORAGE_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const [nwcBalance, setNwcBalance] = useState<number>(0);
+  const [nwcClient, setNwcClient] = useState<any | null>(null);
+
+  const connectNwc = useCallback(async (url: string): Promise<boolean> => {
+    if (!url || !url.startsWith('nostr+walletconnect://')) return false;
+    try {
+      const client = new nwc.NWCClient({ nostrWalletConnectUrl: url });
+      const balanceData = await client.getBalance();
+      setNwcClient(client);
+      setNwcUrlState(url);
+      setWalletType('NWC');
+      setNwcBalance(balanceData.balance || 0);
+      try { localStorage.setItem(NWC_URL_STORAGE_KEY, url); } catch {}
+      return true;
+    } catch (err) {
+      console.error('NWC connection error:', err);
+      return false;
+    }
+  }, []);
+
+  const disconnectNwc = useCallback(() => {
+    setNwcClient(null);
+    setNwcUrlState('');
+    setWalletType('DEMO');
+    try { localStorage.removeItem(NWC_URL_STORAGE_KEY); } catch {}
+  }, []);
+
+  const resetDemoWallet = useCallback(() => {
+    setDemoBalance(DEFAULT_DEMO_SATS);
+    try { localStorage.setItem(DEMO_BALANCE_STORAGE_KEY, String(DEFAULT_DEMO_SATS)); } catch {}
+  }, []);
+
+  const balanceSats = walletType === 'NWC' ? nwcBalance : demoBalance;
+
+  const payInvoice = useCallback(async (bolt11: string, amountSats: number): Promise<{ preimage: string }> => {
+    if (walletType === 'NWC' && nwcClient) {
+      const res = await nwcClient.payInvoice({ invoice: bolt11 });
+      // Refresh balance
+      try {
+        const bal = await nwcClient.getBalance();
+        setNwcBalance(bal.balance || 0);
+      } catch {}
+      return { preimage: res.preimage || '00000000000000000000000000000000' };
+    } else {
+      // Demo Wallet mode: deduct local balance and generate valid preimage
+      if (demoBalance < amountSats) {
+        throw new Error(`Insufficient demo balance. You have ${demoBalance.toLocaleString()} sats, need ${amountSats.toLocaleString()} sats.`);
       }
-      throw err;
+      const newBal = demoBalance - amountSats;
+      setDemoBalance(newBal);
+      try { localStorage.setItem(DEMO_BALANCE_STORAGE_KEY, String(newBal)); } catch {}
+
+      // Generate random 32-byte hex preimage
+      const preimage = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+      return { preimage };
     }
+  }, [walletType, nwcClient, demoBalance]);
 
-    if (!accounts || accounts.length === 0 || !accounts[0]) {
-      throw new Error('Please unlock your wallet and approve account access for this site.');
-    }
-
-    const account = accounts[0];
-    setSelectedRdns(rdns);
+  // ─── 3. Currency Formatting ──────────────────────────────────────────
+  const [currency, setCurrencyState] = useState<Currency>(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, rdns);
+      const stored = localStorage.getItem(CURRENCY_STORAGE_KEY) as Currency;
+      if (['SATS', 'NGN', 'XOF'].includes(stored)) return stored;
     } catch {}
+    return 'SATS';
+  });
 
-    setActiveAccount(account);
-
-    try {
-      const hexChain = (await provider.request({ method: 'eth_chainId' })) as string;
-      setActiveChainId(parseInt(hexChain, 16));
-    } catch {}
-
-    return account;
+  const setCurrency = (c: Currency) => {
+    setCurrencyState(c);
+    try { localStorage.setItem(CURRENCY_STORAGE_KEY, c); } catch {}
   };
 
-  // 5. Clean disconnect
-  const disconnectWallet = () => {
-    setActiveAccount(null);
-    try {
-      disconnect();
-    } catch {}
-  };
-
-  // 6. Reset all sessions, wipe wagmi & custom localStorage
-  const resetWalletSession = () => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith('wagmi') || key.startsWith('@wagmi') || key.startsWith('wc@') || key.startsWith('ajochain_')) {
-          localStorage.removeItem(key);
-        }
-      });
-    } catch {}
-
-    setSelectedRdns(null);
-    setActiveAccount(null);
-    setActiveChainId(null);
-
-    try {
-      disconnect();
-    } catch {}
-  };
-
-  // 7. Get guaranteed active provider with authorized account
-  const getActiveProvider = async (): Promise<{ provider: any; account: string }> => {
-    const detail = resolveActiveDetail();
-    if (!detail || !detail.provider) {
-      throw new Error('No compatible web3 wallet found. Please install MetaMask or OKX Wallet.');
+  const formatAmount = useCallback((sats: number): string => {
+    if (currency === 'NGN') {
+      const ngn = Math.round(sats * SATS_TO_NGN_RATE);
+      return `₦${ngn.toLocaleString()}`;
     }
-
-    const provider = detail.provider;
-
-    // Request accounts explicitly
-    let accounts: string[] = [];
-    try {
-      accounts = (await provider.request({ method: 'eth_requestAccounts' })) as string[];
-    } catch (reqErr: any) {
-      if (reqErr?.code === 4001) {
-        throw new Error('Connection request rejected by user in wallet.');
-      }
-      throw reqErr;
+    if (currency === 'XOF') {
+      const xof = Math.round(sats * SATS_TO_XOF_RATE);
+      return `${xof.toLocaleString()} CFA`;
     }
+    return `${sats.toLocaleString()} sats`;
+  }, [currency]);
 
-    if (!accounts || accounts.length === 0 || !accounts[0]) {
-      throw new Error('Please unlock your wallet and approve account access for this site.');
-    }
-
-    setActiveAccount(accounts[0]);
-    return { provider, account: accounts[0] };
-  };
+  // ─── 4. Wallet Drawer Visibility ──────────────────────────────────────
+  const [isWalletDrawerOpen, setIsWalletDrawerOpen] = useState(false);
+  const openWalletDrawer = () => setIsWalletDrawerOpen(true);
+  const closeWalletDrawer = () => setIsWalletDrawerOpen(false);
 
   return (
     <WalletContext.Provider
       value={{
-        providers,
-        selectedRdns,
-        activeProvider,
-        activeAccount,
-        activeChainId,
-        isConnected: !!activeAccount,
-        selectWallet,
-        disconnectWallet,
-        resetWalletSession,
-        getActiveProvider,
+        npub,
+        nsec,
+        pubkeyHex,
+        isNip07Available,
+        connectNip07,
+        generateNewIdentity,
+        importNsec,
+        walletType,
+        setWalletType,
+        balanceSats,
+        nwcUrl,
+        setNwcUrl: setNwcUrlState,
+        connectNwc,
+        disconnectNwc,
+        resetDemoWallet,
+        payInvoice,
+        currency,
+        setCurrency,
+        formatAmount,
+        isWalletDrawerOpen,
+        openWalletDrawer,
+        closeWalletDrawer
       }}
     >
       {children}

@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "skills": {
+    "alby-bitcoin-payments": {
+      "source": "getAlby/payments-skill",
+      "commit": "b3207c2a744c8b3fb24bf17da90b06f2d343357f",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "3457b9c6156813b5780979647158ead93580e22861285cb7b97602768b175789"
+    },
+    "docker-compose-patterns": {
+      "source": "docker/skills",
+      "commit": "a65ae5b65d22f0613375d6c3e5ea8bb287698cc0",
+      "sourceType": "github",
+      "skillPath": "skills/docker-compose-patterns/SKILL.md",
+      "computedHash": "fd752b44e789bbf42f8c0edd92df89c84871d46aee92785230e5260f866e8f99"
+    },
+    "security-threat-model": {
+      "source": "openai/skills",
+      "commit": "49f948faa9258a0c61caceaf225e179651397431",
+      "sourceType": "github",
+      "skillPath": "skills/.curated/security-threat-model/SKILL.md",
+      "computedHash": "6d66f27a8e4353f49264547acf4e541efd835f2e3a2d91f5a43e2104be5bd65e"
+    },
+    "startwithbitcoin": {
+      "source": "bramkanstein/startwithbitcoin-skill",
+      "commit": "3ea51f3b02d56a2840c18ec67078e0c3c3c2fdec",
+      "sourceType": "github",
+      "skillPath": "skills/startwithbitcoin/SKILL.md",
+      "computedHash": "5176f56b887aec83a4ac4aa2fe2244c6646c2ca7321a6637063de49bd3fadb9e"
+    }
+  }
+}

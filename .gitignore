@@ -1,21 +1,24 @@
 # Environment & Secrets
-.env
+.env*
+!.env.example
 *.pem
 *.key
+*.nsec
+.alby-cli/
 
-# Node & Frontend
+# Node & Build Outputs
 node_modules/
 .npm/
 dist/
 .vite/
 *.tsbuildinfo
 
-# Foundry & Contracts
-contracts/out/
-contracts/cache/
-contracts/broadcast/
+# Databases & Temporary Files
+*.sqlite
+*.sqlite3
+*.log
 
-# OS & Editor
+# Operating System
 .DS_Store
 Thumbs.db
 *.swp

@@ -1,212 +1,92 @@
 import React, { useState, useEffect } from 'react';
-import { usePublicClient, useChainId, useSwitchChain } from 'wagmi';
 import { Header } from './components/Header';
 import { CircleCard, CircleData } from './components/CircleCard';
 import { CircleDashboard } from './components/CircleDashboard';
 import { CreateCircleModal } from './components/CreateCircleModal';
-import { TapeSendDrawer } from './components/TapeSendDrawer';
-import { Plus, Shield, Cpu, Sparkles, BookOpen, RefreshCw, AlertTriangle, ArrowRight, UserPlus, Coins, Play } from 'lucide-react';
-import { AjoFactoryAbi, AjoCircleAbi } from './contracts/abis';
-import { getDeployment } from './config/deployments';
+import { LightningWalletDrawer } from './components/LightningWalletDrawer';
+import {
+  Plus,
+  Zap,
+  Sparkles,
+  BookOpen,
+  RefreshCw,
+  ShieldCheck,
+  ArrowRight,
+  UserPlus,
+  Coins,
+  Play
+} from 'lucide-react';
 import { AnkaraPattern } from './components/AnkaraPattern';
+import { roscaService } from './services/roscaService';
 
-export const App: React.FC = () => {
-  const chainId = useChainId();
-  const publicClient = usePublicClient({ chainId: 1952 });
-  const { switchChain, isPending: isSwitching } = useSwitchChain();
-
-  const [selectedCircleAddress, setSelectedCircleAddress] = useState<string | null>(null);
+export const AppContent: React.FC = () => {
+  const [selectedCircleId, setSelectedCircleId] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isTapeSendOpen, setIsTapeSendOpen] = useState(false);
-  const [targetContainer, setTargetContainer] = useState<string | undefined>(undefined);
-
-  // 100% Zero-Mock: State populated purely from on-chain RPC reads
   const [circles, setCircles] = useState<CircleData[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isWrongNetwork, setIsWrongNetwork] = useState<boolean>(false);
-  const [wrongNetworkName, setWrongNetworkName] = useState<string>('');
 
-  // Check URL query param ?circle=0x...
+  // Check URL query param ?circle=...
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const circleParam = params.get('circle');
-      if (circleParam && circleParam.startsWith('0x')) {
-        setSelectedCircleAddress(circleParam);
+      if (circleParam) {
+        setSelectedCircleId(circleParam);
       }
     }
   }, []);
 
-  // Fetch real on-chain circles from AjoFactory with network-aware verification
-  const fetchAllCirclesFromChain = async () => {
-    if (!publicClient) return;
+  const fetchCircles = async () => {
     try {
       setIsLoading(true);
-      const activeChainId = publicClient.chain?.id || chainId || 1952;
-      const activeDeployment = getDeployment(activeChainId);
-      const factoryAddr = activeDeployment.factory;
-
-      // Detect chain mismatch before calling contracts
-      if (activeChainId !== 1952 && activeChainId !== 31337) {
-        setIsWrongNetwork(true);
-        setWrongNetworkName(activeChainId === 196 ? 'X Layer Mainnet (196)' : `Chain ID ${activeChainId}`);
-        setCircles([]);
-        setIsLoading(false);
-        return;
-      }
-
-      // Check if factory contract bytecode exists to prevent ContractFunctionZeroDataError
-      const bytecode = await publicClient.getBytecode({ address: factoryAddr });
-      if (!bytecode || bytecode === '0x') {
-        console.warn(`No contract bytecode at factory address ${factoryAddr} on chain ${activeChainId}`);
-        setIsWrongNetwork(true);
-        setWrongNetworkName(`Chain ID ${activeChainId}`);
-        setCircles([]);
-        setIsLoading(false);
-        return;
-      }
-
-      setIsWrongNetwork(false);
-
-      // Safe to call getAllCircles on factory
-      const allCircleAddrs = (await publicClient.readContract({
-        address: factoryAddr,
-        abi: AjoFactoryAbi,
-        functionName: 'getAllCircles',
-      })) as `0x${string}`[];
-
-      // Fallback: If factory list is empty (e.g. freshly deployed before any created), include seedCircle
-      const uniqueAddrs = Array.from(
-        new Set(
-          [activeDeployment.seedCircle, ...(allCircleAddrs || [])].filter(
-            (a) => a && a !== '0x0000000000000000000000000000000000000000'
-          )
-        )
-      ) as `0x${string}`[];
-
-      const results = await Promise.all(
-        uniqueAddrs.map(async (cAddr) => {
-          try {
-            const cBytecode = await publicClient.getBytecode({ address: cAddr });
-            if (!cBytecode || cBytecode === '0x') return null;
-
-            const [
-              name,
-              hostName,
-              cAmount,
-              tDuration,
-              maxM,
-              mCount,
-              cTurn,
-              cStatus,
-              rDeposit,
-              cProcessor,
-            ] = await Promise.all([
-              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'circleName' }),
-              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'hostName' }),
-              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'contributionAmount' }),
-              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'turnDuration' }),
-              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'maxMembers' }),
-              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'memberCount' }),
-              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'currentTurn' }),
-              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'status' }),
-              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'requireDeposit' }),
-              publicClient.readContract({ address: cAddr, abi: AjoCircleAbi, functionName: 'tapeOutProcessor' }),
-            ]);
-
-            return {
-              address: cAddr,
-              name: name || 'Ajo Exercise Book',
-              hostName: hostName || 'Host',
-              contributionAmount: Number(cAmount) / 1e6,
-              turnDuration: Number(tDuration),
-              maxMembers: Number(maxM),
-              currentMembers: Number(mCount),
-              currentTurn: Number(cTurn || 1),
-              status: (cStatus === 0 ? 'OPEN' : cStatus === 1 ? 'ACTIVE' : 'COMPLETED') as 'OPEN' | 'ACTIVE' | 'COMPLETED',
-              requireDeposit: rDeposit,
-              tapeOutProcessor: cProcessor ? String(cProcessor) : 'LAGOS_ARM',
-            } as CircleData;
-          } catch (e) {
-            console.warn(`Could not load circle ${cAddr}:`, e);
-            return null;
-          }
-        })
-      );
-
-      const loadedCircles = results.filter((c): c is CircleData => c !== null);
-      setCircles(loadedCircles);
+      const data = await roscaService.getCircles();
+      setCircles(data);
     } catch (err) {
-      console.error('Failed to load on-chain circles:', err);
+      console.warn('Error loading circles:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAllCirclesFromChain();
-    const interval = setInterval(fetchAllCirclesFromChain, 12000);
-    return () => clearInterval(interval);
-  }, [publicClient, chainId]);
+    fetchCircles();
+  }, []);
 
-  const handleCircleCreated = (newCircleAddress: string) => {
-    fetchAllCirclesFromChain();
-    setSelectedCircleAddress(newCircleAddress);
-  };
-
-  const openTapeSendWithContainer = (container?: string) => {
-    const activeDeployment = getDeployment(chainId);
-    setTargetContainer(container || activeDeployment.tapeOutContainer);
-    setIsTapeSendOpen(true);
+  const handleResetSeed = async () => {
+    try {
+      await roscaService.resetSeed();
+      await fetchCircles();
+      setSelectedCircleId('dakar-lagos-market');
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', '?circle=dakar-lagos-market');
+      }
+    } catch (e) {
+      console.error('Reset error:', e);
+    }
   };
 
   return (
-    <div className="min-h-screen ajo-page-backdrop text-slate-100 flex flex-col font-sans">
-      {/* Header */}
-      <Header onOpenTapeOutDrawer={() => setIsTapeSendOpen(true)} />
-
-      {/* Network Switch Banner if on non-1952 network */}
-      {isWrongNetwork && (
-        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-3.5">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5 text-amber-300">
-              <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
-              <div>
-                <span className="font-bold">Chain Mismatch Detected:</span> Your client/wallet is currently on{' '}
-                <span className="underline font-semibold">{wrongNetworkName || 'another network'}</span>. AjoChain contracts are actively deployed on{' '}
-                <span className="font-bold text-white">X Layer Testnet (Chain ID: 1952)</span>.
-              </div>
-            </div>
-            <button
-              onClick={() => switchChain && switchChain({ chainId: 1952 })}
-              disabled={isSwitching}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold font-sans transition shadow-lg flex-shrink-0 disabled:opacity-50 cursor-pointer"
-            >
-              <span>{isSwitching ? 'Switching...' : 'Switch Wallet to X Layer Testnet (1952)'}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      )}
+    <div className="min-h-screen ajo-page-backdrop text-slate-100 flex flex-col font-sans selection:bg-emerald-600 selection:text-white">
+      
+      {/* Header with Currency Switcher & Wallet */}
+      <Header onResetSeed={handleResetSeed} />
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-8">
-        {selectedCircleAddress ? (
+        {selectedCircleId ? (
           <CircleDashboard
-            circleAddress={selectedCircleAddress}
+            circleId={selectedCircleId}
             onBack={() => {
-              setSelectedCircleAddress(null);
-              // Clean query param
+              setSelectedCircleId(null);
               if (typeof window !== 'undefined' && window.history.pushState) {
                 const url = window.location.protocol + '//' + window.location.host + window.location.pathname;
                 window.history.pushState({ path: url }, '', url);
               }
             }}
-            onOpenTapeSend={openTapeSendWithContainer}
           />
         ) : (
           <div className="space-y-8">
-            
+
             {/* Hero / Value Proposition Banner with African Ankara Backdrop & Exercise Book Margin */}
             <div className="relative rounded-3xl p-8 lg:p-10 ajo-hero-frame border border-slate-800/80 shadow-2xl overflow-hidden border-l-4 border-l-rose-500/60 backdrop-blur-md">
               <AnkaraPattern className="text-emerald-400 opacity-[0.045]" />
@@ -214,11 +94,11 @@ export const App: React.FC = () => {
               <div className="relative z-10 max-w-2xl space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold">
-                    <span>🇳🇬 Traditional Nigerian Esusu / Ajo • Powered by X Layer & TapeOut</span>
+                    <span>🌍 Traditional West African ROSCA (Ajo / Esusu / Tontine) • Powered by Bitcoin Lightning</span>
                   </div>
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium font-mono">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium font-mono">
                     <Sparkles className="w-3 h-3" />
-                    <span>tapeout.net</span>
+                    <span>BTrust Dakar 2026</span>
                   </div>
                 </div>
 
@@ -230,7 +110,7 @@ export const App: React.FC = () => {
                 </h1>
 
                 <p className="text-sm text-slate-300 leading-relaxed font-normal">
-                  Rotational savings and credit (Ajo / Esusu) upgraded for X Layer. Sign your real name into the on-chain exercise book, contribute in 1-click, and let verifiable boolean circuit netlists disburse the pot each turn with <strong className="text-emerald-300 font-semibold">0% human custody</strong>.
+                  Rotational savings and credit (Ajo / Esusu / Tontine) upgraded for Bitcoin Lightning, Nostr, and Autonomous AI. Sign your name into the communal exercise book, contribute in 1-tap via Lightning invoices, and let autonomous smart agents disburse the pot each turn with <strong className="text-emerald-300 font-semibold">0% human custody</strong>.
                 </p>
 
                 <div className="pt-2 flex flex-wrap items-center gap-4">
@@ -242,21 +122,29 @@ export const App: React.FC = () => {
                     <span>Host New Exercise Book</span>
                   </button>
 
+                  <button
+                    onClick={handleResetSeed}
+                    className="flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
+                  >
+                    <span>⚡ Quick Test: Dakar–Lagos Demo</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
+                  </button>
+
                   <div className="flex items-center gap-4 text-xs text-slate-400">
                     <span className="flex items-center gap-1.5 font-medium text-emerald-300">
-                      <Shield className="w-4 h-4 text-emerald-400" />
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
                       1x Deposit Protected
                     </span>
-                    <span className="flex items-center gap-1.5 font-medium text-blue-300">
-                      <Cpu className="w-4 h-4 text-blue-400" />
-                      DeWEB On-Chain Hosted
+                    <span className="flex items-center gap-1.5 font-medium text-amber-300">
+                      <Zap className="w-4 h-4 text-amber-400" />
+                      Instant Lightning Payout
                     </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* How AjoChain Works • 4-Step Exercise Book Guide Strip */}
+            {/* How AjoBook Works • 4-Step Exercise Book Guide Strip */}
             <div className="rounded-2xl p-5 bg-[#0e1726]/90 border border-slate-800/90 shadow-xl relative overflow-hidden">
               <AnkaraPattern className="text-blue-400 opacity-[0.02]" />
 
@@ -265,7 +153,7 @@ export const App: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4 text-emerald-400" />
                     <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                      How AjoChain Works • The Non-Custodial Nigerian Esusu Protocol
+                      How AjoBook Works • The Non-Custodial African Bitcoin ROSCA
                     </h3>
                   </div>
                   <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/25 font-mono">
@@ -284,7 +172,7 @@ export const App: React.FC = () => {
                         <span>Host Opens Book</span>
                       </h4>
                       <p className="text-[11px] text-slate-400 leading-relaxed">
-                        Host specifies contribution (e.g. 100 USDT), cadence (<span className="text-amber-300">5-min demo</span> to monthly), and 1x security deposit.
+                        Host specifies contribution (e.g. 5,000 sats / ₦10,000 / 3,500 CFA), cadence (<span className="text-amber-300">5-min demo</span> to monthly), and 1x security deposit.
                       </p>
                     </div>
                   </div>
@@ -300,7 +188,7 @@ export const App: React.FC = () => {
                         <span>Members Sign In</span>
                       </h4>
                       <p className="text-[11px] text-slate-400 leading-relaxed">
-                        Participants sign their chosen display names (<span className="font-serif italic text-slate-300">"Ada", "Chidi"</span>) via QR or link, queued in fair join-order.
+                        Participants sign their chosen display names (<span className="font-serif italic text-slate-300">"Aminata", "Tunde", "Chidi"</span>) via QR or link, queued in fair join-order.
                       </p>
                     </div>
                   </div>
@@ -313,10 +201,10 @@ export const App: React.FC = () => {
                       </div>
                       <h4 className="text-xs font-bold text-white mb-1.5 flex items-center gap-1.5">
                         <Coins className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Escrowed Turns</span>
+                        <span>Lightning Escrow</span>
                       </h4>
                       <p className="text-[11px] text-slate-400 leading-relaxed">
-                        Each turn, members pay USDT directly into the locked contract vault. No human or collector can redirect funds.
+                        Each turn, members pay sats directly via Lightning BOLT11 invoices. No human organizer or collector can redirect funds.
                       </p>
                     </div>
                   </div>
@@ -329,10 +217,10 @@ export const App: React.FC = () => {
                       </div>
                       <h4 className="text-xs font-bold text-white mb-1.5 flex items-center gap-1.5">
                         <Play className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Scheduled Payout</span>
+                        <span>Instant Pot Payout</span>
                       </h4>
                       <p className="text-[11px] text-slate-400 leading-relaxed">
-                        When the period timer reaches zero, the accumulated pot is disbursed to that turn's collector and starts the next round.
+                        When all contributions land or the period timer expires, the pot automatically disburses to that turn's collector with signed Nostr NIP-58 badge.
                       </p>
                     </div>
                   </div>
@@ -345,23 +233,23 @@ export const App: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-blue-400" />
-                    <span>Active Ajo Exercise Books on X Layer</span>
+                    <BookOpen className="w-5 h-5 text-emerald-400" />
+                    <span>Active Ajo Exercise Books</span>
                   </h2>
-                  <p className="text-xs text-slate-400">Live rotational savings circles running directly on-chain</p>
+                  <p className="text-xs text-slate-400">Live communal rotational savings circles signed on Nostr</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={fetchAllCirclesFromChain}
+                    onClick={fetchCircles}
                     disabled={isLoading}
-                    className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition"
+                    className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition cursor-pointer"
                     title="Refresh Live Data"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-blue-400' : ''}`} />
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
                   </button>
                   <button
                     onClick={() => setIsCreateOpen(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Host Ajo</span>
@@ -371,29 +259,34 @@ export const App: React.FC = () => {
 
               {isLoading && circles.length === 0 ? (
                 <div className="p-12 text-center text-xs text-slate-500 font-mono">
-                  Loading live exercise books from X Layer...
+                  Loading live exercise books from Nostr &amp; Lightning engine...
                 </div>
               ) : circles.length === 0 ? (
                 <div className="p-12 rounded-2xl bg-[#121824] border border-slate-800 text-center space-y-3">
                   <BookOpen className="w-10 h-10 text-slate-600 mx-auto" />
                   <h3 className="text-sm font-bold text-white">No exercise books hosted yet</h3>
                   <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                    Be the first host to create an Ajo exercise book on X Layer. Sign names, invite friends, and save together safely.
+                    Be the first host to open a communal savings circle or click below to launch the pre-seeded Dakar–Lagos market demo.
                   </p>
                   <button
-                    onClick={() => setIsCreateOpen(true)}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shadow-lg"
+                    onClick={handleResetSeed}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition shadow-lg cursor-pointer"
                   >
-                    Host First Exercise Book
+                    Load Dakar–Lagos Market Demo
                   </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {circles.map((circle) => (
                     <CircleCard
-                      key={circle.address}
+                      key={circle.id || circle.address}
                       circle={circle}
-                      onSelect={(addr) => setSelectedCircleAddress(addr)}
+                      onSelect={(id) => {
+                        setSelectedCircleId(id);
+                        if (typeof window !== 'undefined') {
+                          window.history.pushState({}, '', `?circle=${id}`);
+                        }
+                      }}
                     />
                   ))}
                 </div>
@@ -404,38 +297,45 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* Footer with DeWEB On-Chain Proof */}
+      {/* Footer with Nostr & Bitcoin Rail Proof */}
       <footer className="border-t border-slate-800 py-6 px-4 lg:px-8 mt-auto text-xs text-slate-500">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-400">AjoChain</span>
+            <span className="font-semibold text-slate-400">AjoBook</span>
             <span>•</span>
-            <span>Digital Exercise Book on X Layer</span>
+            <span>Digital Exercise Book for West Africa</span>
             <span>•</span>
-            <span className="text-blue-400 font-mono">100% Zero-Mock RPC Live Reads</span>
+            <span className="text-amber-400 font-mono">Bitcoin Lightning &amp; Nostr</span>
           </div>
           <div className="flex items-center gap-4 text-slate-400">
-            <span>zkEVM Rollup</span>
+            <span>BTrust Dakar 2026</span>
             <span>•</span>
-            <span>Gas: OKB</span>
+            <span>Settlement: Sats (⚡)</span>
             <span>•</span>
-            <span>Settlement: USDT</span>
+            <span>Nostr Kind 30078 / Kind 8 Badges</span>
           </div>
         </div>
       </footer>
 
-      {/* Modals & Drawers */}
+      {/* Global Modals & Drawers */}
+      <LightningWalletDrawer />
+
       <CreateCircleModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onCreated={handleCircleCreated}
+        onCreated={(newId) => {
+          fetchCircles();
+          setSelectedCircleId(newId);
+          if (typeof window !== 'undefined') {
+            window.history.pushState({}, '', `?circle=${newId}`);
+          }
+        }}
       />
 
-      <TapeSendDrawer
-        isOpen={isTapeSendOpen}
-        onClose={() => setIsTapeSendOpen(false)}
-        targetContainer={targetContainer}
-      />
     </div>
   );
+};
+
+export const App: React.FC = () => {
+  return <AppContent />;
 };

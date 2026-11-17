@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: './', // CRITICAL FOR DeWEB: Enables relative asset paths for 100% on-chain storage
+  base: './',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -14,7 +14,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
-          web3: ['viem', 'wagmi', '@tanstack/react-query'],
+          bitcoin: ['nostr-tools', '@noble/hashes', '@getalby/sdk', '@tanstack/react-query'],
         },
       },
     },

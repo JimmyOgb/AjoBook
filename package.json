@@ -1,0 +1,27 @@
+{
+  "name": "ajobook",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Non-custodial rotational savings (Ajo / Esusu / Tontine) on Bitcoin, Lightning Network & Nostr",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/start-all.js",
+    "backend": "cd backend && node server.js",
+    "frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "test": "node scripts/test-e2e.js"
+  },
+  "keywords": [
+    "bitcoin",
+    "lightning-network",
+    "nostr",
+    "nip-47",
+    "nip-58",
+    "tontine",
+    "rosca",
+    "ajo",
+    "esusu"
+  ],
+  "author": "JimmyOgb",
+  "license": "MIT"
+}

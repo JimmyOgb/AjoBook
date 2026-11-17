@@ -1,135 +1,69 @@
-# AjoChain — Project Guidelines & Technical Specifications
+# AjoBook — Project Guidelines & Technical Specifications
+### BTrust Dakar Bitcoin Hack 2026 Edition
 
-> **AjoChain** is a decentralized, non-custodial Nigerian rotational savings and credit association (ROSCA / Ajo / Esusu) dApp deployed on **X Layer** and powered by the **TapeOut Protocol** (`tapeout.net`).
+> **AjoBook** is a decentralized, non-custodial West African rotational savings and credit association (ROSCA / Ajo / Esusu / Tontine) platform powered by **Bitcoin, Lightning Network, Nostr, and Autonomous AI**.
+> **GitHub:** `https://github.com/JimmyOgb/AjoBook`
+> **Vercel Project:** `Ajobook` (`https://ajobook.vercel.app`)
 
-All agents, subagents, and contributors working on this repository **MUST** strictly follow the technical specifications, architectural constraints, and coding standards outlined in this document.
+All agents, subagents, and contributors working on this repository **MUST** strictly follow the technical specifications and standards outlined in this document.
 
 ---
 
-## 1. Network & Chain Configuration (X Layer)
+## 1. Network & Protocol Stack
 
-AjoChain is built specifically for **X Layer** (Polygon CDK / zkEVM rollup secured by OKX and Ethereum).
-
-| Parameter | Mainnet | Testnet |
+| Component | Technology | Specification / Standard |
 | :--- | :--- | :--- |
-| **Network Name** | X Layer Mainnet | X Layer Testnet |
-| **Chain ID** | `196` | `1952` |
-| **RPC URL** | `https://rpc.xlayer.tech` | `https://testrpc.xlayer.tech` |
-| **Block Explorer** | `https://www.oklink.com/xlayer` | `https://www.oklink.com/xlayer-test` |
-| **Native Gas Token** | `OKB` | `OKB` (Testnet) |
-| **Settlement Currency** | `USDT` (Bridged/Native on X Layer) | `TestUSDT` (Mock ERC-20 for testing) |
-
-### Currency & Gas Rules:
-- **Zero ETH assumptions:** Always use `OKB` as native gas token.
-- **USDT Accounting:** All circle contributions, collateral escrows, and payouts are denominated in `USDT` (6 decimals). Smart contracts and frontend must handle 6-decimal math accurately.
-- **Mock Token:** Local Foundry tests and Testnet deployments must use `TestUSDT.sol` (with a public faucet/mint function for test runners).
+| **Settlement Rail** | Bitcoin Lightning Network | BOLT11 invoices, LNURL-pay, instant sat settlement |
+| **Wallet Protocol** | Nostr Wallet Connect (NWC) | NIP-47 remote wallet control via `@getalby/sdk` & Alby CLI |
+| **Identity Protocol** | Nostr Public-Key Cryptography | NIP-01 (`npub`/`nsec` secp256k1 keypairs) & NIP-07 web extensions |
+| **Communal Ledger** | Nostr Signed Events | Kind `30078` (Application state) & Kind `8` (NIP-58 badges) |
+| **AI Bookkeeper & Steward** | Autonomous Agentic Advisor | Multilingual risk analysis & reminders (EN, FR, PCM) |
+| **Currencies** | SATS, NGN (₦), XOF (CFA) | Real-time satoshi to West African fiat conversion display |
 
 ---
 
-## 2. TapeOut Protocol Architecture & Ground Truths
+## 2. Core Architecture & Ground Truths
 
-> [!IMPORTANT]
-> **Strict Anti-Hallucination Policy:** Do **NOT** invent or hallucinate fictional TapeOut Protocol APIs, consensus mechanisms, or payment routing features. Adhere strictly to the actual TapeOut specifications below.
+### 2.1 Autonomous ROSCA Engine
+- **Zero Human Custody:** No human organizer or middleman holds the communal pot.
+- **1x Escrow Deposit Safeguard:** Members lock a 1-turn security deposit upfront. If a participant defaults on their turn, their deposit is slashed into the pot so the round recipient is never shortchanged.
+- **Autonomous Pot Distribution:** As soon as all $N$ circle members contribute for the active turn, the pot automatically disburses to the designated rotation recipient's Lightning Address or NWC wallet.
 
-### 2.1 Core Circuit & Container Architecture
-- **Primitive Logic Elements:** TapeOut constructs on-chain digital logic circuits using `NAND` gates and `LATCH` memory gates represented by **ERC-1155** tokens.
-- **Circuit NFTs (ERC-721):** Static netlists of compiled logic gates are minted as immutable Circuit NFTs.
-- **Circuit Containers (ERC-6551):** Each Circuit NFT is paired with a Token Bound Account (ERC-6551 Circuit Container). The container owns assets, stores state, executes circuit instructions, and hosts DeWEB bundles.
+### 2.2 Nostr Event Ledger (Tamper-Proof History)
+- **Kind 30078 (App State):** Circle configuration, member slots, turn progression, and contribution status signed by the coordinator agent.
+- **Kind 8 (NIP-58 Badges):** Verifiable cryptographic proof awarded to turn recipients upon successful pot disbursement.
+- **NIP-04 / NIP-17 DMs:** Encrypted turn notification reminders sent directly to member Nostr pubkeys.
 
-### 2.2 X Layer Naming & Resolution (TapeKit)
-- Containers on X Layer are addressed either by their canonical ERC-6551 contract address or by area-coded names following the format:
-  ```text
-  #<ID>.<area>.<processor>.tape
-  ```
-- **Verification Rule:** TapeKit client resolution verifies all hosted files byte-for-byte using **SHA-256 integrity hashes** cross-checked across **at least two independent RPC nodes** on X Layer.
+### 2.3 West African Cultural & Regional UX
+- **The Exercise Book Experience:** Preserves the beloved African market physical exercise book layout with turn numbers, human names, and paid/missed ledger columns.
+- **Trilingual Support:** Generates reminders in **English**, **Français** (Dakar / Francophone Tontines), and **Nigerian Pidgin**.
+- **Authentic Adire / Ankara SVG:** Woven visual motif with zero external assets.
 
-### 2.3 DeWEB Static On-Chain Hosting Constraints
-DeWEB dApp frontends live 100% on-chain stored across container storage chunks:
-- **Zero SSR / Zero Node Runtime:** The web application MUST be a pure static Single Page Application (SPA).
-- **Relative Pathing Requirement:** All assets must use relative paths (`./assets/...`, `./favicon.ico`). The Vite configuration MUST specify `base: './'`.
-- **Root Entrypoint:** Build artifacts must place `index.html` at the bundle root with flat or clean relative asset hierarchies.
-- **Lightweight Bundle Budgets:** Keep code splittings lean, eliminate heavy external libraries, inline critical SVGs, and compress CSS/JS to fit within on-chain container storage limits when pushed via **TapeCode** / **SiteRegistry**.
-
-### 2.4 TapeSend (TAP-10 Messaging Standard)
-- **What TapeSend IS:** An end-to-end encrypted container-to-container messaging protocol (TAP-10).
-- **What TapeSend IS NOT:** TapeSend is **NOT** a financial payment router, token bridge, or fund transfer rail.
-- **AjoChain Use Case:** Use TapeSend strictly for off-chain/on-chain encrypted member coordination:
-  1. Circle invitations and acceptances between member containers.
-  2. Encrypted round status notifications (e.g., contribution window open, round payout dispatched, default warning alerts).
-
-### 2.5 Hybrid Execution Model (Hackathon Approved)
-To provide institutional financial safety alongside TapeOut decentralized hosting:
-- **Solidity Smart Contracts (`AjoFactory.sol` & `AjoCircle.sol`):** Handle financial custody, collateral escrow locking, time-locked round deadlines, contribution checks, and automatic USDT payouts.
-- **TapeOut Integration:**
-  1. **Container Linkage:** Each `AjoCircle` is bound to a registered TapeOut Circuit ID / Container address.
-  2. **Deterministic State Verification:** Defaulter identification logic and payout turn verification can be proven via TapeOut boolean gate logic (`NAND`/`LATCH` netlists).
-  3. **DeWEB Frontends:** The user interface is permanently hosted within a TapeOut Circuit Container.
+### 2.4 Dual-Mode Operation (Vercel Standalone + Local Docker Backend)
+- **Standalone Vercel Mode (`ajobook.vercel.app`):** When `VITE_API_URL` is omitted, the frontend operates autonomously using `localStorage` persistence and direct Nostr relay synchronization with the pre-seeded Dakar–Lagos market demo ready on first load.
+- **Local Docker / Node Mode:** Runs with Express ROSCA engine on port `3001` and Vite on port `5173`.
 
 ---
 
-## 3. Smart Contract Standards (Solidity & Foundry)
+## 3. Quick Start & One-Command Setup
 
-1. **Compiler:** Solidity `^0.8.24` with EVM target compatible with X Layer (Cancun/Shanghai compatible; avoid opcodes unsupported on X Layer zkEVM).
-2. **Toolchain:** Foundry (`forge build`, `forge test`, `forge fmt`).
-3. **Security Standards:**
-   - Use OpenZeppelin contracts: `ReentrancyGuard`, `SafeERC20`, `IERC20`, `Ownable`.
-   - All token transfers must use `SafeERC20.safeTransfer` and `SafeERC20.safeTransferFrom`.
-   - **Zero Human Custody:** Once an Ajo circle starts, funds cannot be withdrawn, redirected, or altered by the creator, factory owner, or any admin key.
-4. **Testing & Invariants:**
-   - Invariant testing for circle balance conservation ($\sum \text{contributions} + \sum \text{collateral} = \text{contract balance}$).
-   - Defaulter slashing: If a member who received an early payout fails to contribute in subsequent rounds, their locked collateral is automatically slashed and distributed to remaining honest members.
-   - Deadline auto-payout: Any participant or keeper can trigger round distribution once deadlines expire without admin permissions.
+### Local Run:
+```bash
+# Install dependencies & run both backend + frontend
+npm start
 
----
-
-## 4. Frontend Standards (Vite + React + TypeScript + Wagmi)
-
-1. **Framework:** React 18+ with TypeScript and Vite.
-2. **Web3 Stack:** `viem` and `wagmi` configured for:
-   - X Layer Mainnet (`chainId: 196`) & X Layer Testnet (`chainId: 1952`).
-   - OKX Wallet native connector + Injected / WalletConnect.
-3. **DeWEB Compliance:**
-   - `vite.config.ts` must set `base: './'`.
-   - No dynamic server-side imports or server environment variables.
-   - All environment variables exposed to the client must use `VITE_*` prefix.
-   - Static asset output in single `dist/` folder ready for `tapecode` deployment.
-
----
-
-## 5. Repository Structure
-
-```text
-ajochain/
-├── .agents/
-│   └── skills/
-│       └── tapeout-xlayer/
-│           └── SKILL.md         # Specialized skill for TapeOut + X Layer engineering
-├── contracts/                   # Foundry smart contract project
-│   ├── src/
-│   │   ├── AjoFactory.sol       # Factory for creating and tracking Ajo circles
-│   │   ├── AjoCircle.sol        # Core ROSCA circle logic (escrow, rounds, slashing)
-│   │   └── mocks/
-│   │       └── TestUSDT.sol     # Mock USDT for local/testnet development
-│   ├── test/
-│   │   ├── AjoCircle.t.sol      # Unit and scenario tests
-│   │   └── Invariants.t.sol     # Property and invariant fuzz tests
-│   └── foundry.toml
-├── frontend/                    # Vite + React + TypeScript DeWEB static dApp
-│   ├── src/
-│   │   ├── config/chains.ts     # X Layer chain and RPC definitions
-│   │   ├── config/wagmi.ts      # Wagmi client configuration
-│   │   ├── contracts/           # ABIs and contract addresses
-│   │   └── tapeout/             # TapeKit resolver & TapeSend TAP-10 helpers
-│   ├── vite.config.ts           # base: './' static configuration
-│   └── package.json
-└── AGENTS.md                    # This file
+# Or run separately:
+npm run backend   # Port 3001 (Node/Express ROSCA engine + Nostr coordinator)
+npm run frontend  # Port 5173 (Vite + React + Tailwind dApp)
 ```
 
----
+### Docker Compose:
+```bash
+docker compose up --build
+```
 
-## 6. Development Workflow Rules for Agents
-
-- **Always verify before reporting done:** Run tests (`forge test -vvv`) and build commands (`npm run build` or `pnpm build`) to prove validity.
-- **Do not bypass checks:** Never suppress TypeScript errors or skip failing tests.
-- **Cross-link references:** Reference files using standard markdown links (e.g. `[AjoCircle.sol](file:///contracts/src/AjoCircle.sol)`).
-- **Refer to skill:** When performing TapeOut or X Layer specific tasks, load and follow [SKILL.md](file:///.agents/skills/tapeout-xlayer/SKILL.md).
+### End-to-End Test:
+```bash
+npm test
+```
+Verifies health check, pre-seeded Dakar–Lagos market circle, AI steward risk assessment, 1-tap contribution payment, autonomous pot disbursement, and signed Nostr NIP-58 receipt generation.

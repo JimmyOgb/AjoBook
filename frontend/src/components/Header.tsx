@@ -1,302 +1,113 @@
-import React, { useState } from 'react';
-import { useConnect, useChainId, useSwitchChain } from 'wagmi';
-import { ShieldCheck, Coins, Wallet, LogOut, CheckCircle2, ChevronDown, Cpu, X, RefreshCw } from 'lucide-react';
-import { xLayerMainnet, xLayerTestnet } from '../config/chains';
-import { Erc20Abi } from '../contracts/abis';
-import { getDeployment } from '../config/deployments';
-import { useWalletGuard } from '../hooks/useWalletGuard';
+import React from 'react';
+import {
+  Zap,
+  ShieldCheck,
+  Key,
+  RotateCcw
+} from 'lucide-react';
+import { useWallet, Currency } from '../context/WalletContext';
 
 interface HeaderProps {
-  onOpenTapeOutDrawer: () => void;
+  onResetSeed?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenTapeOutDrawer }) => {
+export const Header: React.FC<HeaderProps> = ({ onResetSeed }) => {
   const {
-    address,
-    isConnected,
-    providers,
-    selectedRdns,
-    selectWallet,
-    disconnectWallet,
-    resetWalletSession,
-    ensureAuthorizedWallet,
-    sendContractTx,
-  } = useWalletGuard();
-
-  const { connect, connectors } = useConnect();
-  const chainId = useChainId();
-  const { switchChain, switchChainAsync } = useSwitchChain();
-  const [isMinting, setIsMinting] = useState(false);
-  const [mintSuccess, setMintSuccess] = useState(false);
-  const [showWalletModal, setShowWalletModal] = useState(false);
-
-  const activeDeployments = getDeployment(chainId);
-
-  const handleMintTestUsdt = async () => {
-    try {
-      setIsMinting(true);
-      setMintSuccess(false);
-      const { account } = await ensureAuthorizedWallet();
-
-      // Mint 1,000 USDT (6 decimals = 1,000,000,000 units)
-      await sendContractTx({
-        address: activeDeployments.testUsdt as `0x${string}`,
-        abi: Erc20Abi,
-        functionName: 'mint',
-        args: [account, BigInt(1_000 * 1e6)],
-      });
-      setMintSuccess(true);
-      setTimeout(() => setMintSuccess(false), 4000);
-    } catch (err) {
-      console.error('Faucet mint failed:', err);
-    } finally {
-      setIsMinting(false);
-    }
-  };
-
-  const handleSwitchNetwork = async (targetChainId: number) => {
-    try {
-      if (switchChainAsync) {
-        await switchChainAsync({ chainId: targetChainId });
-      } else {
-        switchChain({ chainId: targetChainId });
-      }
-    } catch (err: any) {
-      if (targetChainId === 1952 && typeof window !== 'undefined') {
-        const provider = (window as any).okxwallet || (window as any).ethereum;
-        if (provider?.request) {
-          try {
-            await provider.request({
-              method: 'wallet_addEthereumChain',
-              params: [
-                {
-                  chainId: '0x7a0',
-                  chainName: 'X Layer Testnet',
-                  nativeCurrency: { name: 'OKB', symbol: 'OKB', decimals: 18 },
-                  rpcUrls: ['https://testrpc.xlayer.tech'],
-                  blockExplorerUrls: ['https://www.oklink.com/x-layer-testnet'],
-                },
-              ],
-            });
-            if (switchChainAsync) {
-              await switchChainAsync({ chainId: 1952 });
-            }
-          } catch {}
-        }
-      }
-    }
-  };
-
-  const isTestnetOrLocal = chainId === xLayerTestnet.id || chainId === 31337;
+    npub,
+    balanceSats,
+    currency,
+    setCurrency,
+    formatAmount,
+    openWalletDrawer,
+    walletType
+  } = useWallet();
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-800 bg-[#0B0E14]/90 backdrop-blur-md px-4 lg:px-8 py-3.5">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         
-        {/* Brand & Zero-Human-Custody Badge */}
+        {/* Brand & African Bitcoin ROSCA Badge */}
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-black text-white text-lg tracking-wider shadow-lg shadow-blue-500/20">
-              A
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-amber-600 to-yellow-500 flex items-center justify-center font-black text-slate-950 text-lg tracking-wider shadow-lg shadow-amber-500/20">
+              ⚡
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-lg text-white tracking-tight">AjoChain</span>
-                <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                  X Layer
+                <span className="font-bold text-lg text-white tracking-tight">AjoBook</span>
+                <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  Bitcoin Lightning
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Non-Custodial Nigerian ROSCA</p>
+              <p className="text-xs text-slate-400">Non-Custodial West African ROSCA &amp; AI Steward</p>
             </div>
           </div>
 
           {/* Zero Human Custody Proof Badge */}
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>0% Human Custody • Verified on X Layer</span>
+            <span>0% Human Custody • Signed on Nostr</span>
           </div>
         </div>
 
         {/* Action Controls & Wallet */}
         <div className="flex items-center gap-2.5 flex-wrap">
           
-          {/* TapeOut Protocol Drawer Toggle */}
-          <button
-            onClick={onOpenTapeOutDrawer}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 text-xs font-medium transition cursor-pointer"
-            title="Inspect TapeOut Circuit Container & TAP-10 Messaging"
-          >
-            <Cpu className="w-3.5 h-3.5 text-blue-400" />
-            <span className="hidden sm:inline">TapeOut</span> Container
-          </button>
-
-          {/* Faucet Button (Testnet only) */}
-          {isTestnetOrLocal && (
-            <button
-              onClick={handleMintTestUsdt}
-              disabled={isMinting}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-medium transition disabled:opacity-50 cursor-pointer"
-            >
-              {mintSuccess ? (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>+1,000 USDT Minted!</span>
-                </>
-              ) : (
-                <>
-                  <Coins className="w-3.5 h-3.5" />
-                  <span>{isMinting ? 'Minting...' : 'Faucet +1k USDT'}</span>
-                </>
-              )}
-            </button>
-          )}
-
-          {/* Network Switcher */}
-          <div className="relative group">
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-medium transition cursor-pointer">
-              <span className={`w-2 h-2 rounded-full ${chainId === xLayerMainnet.id ? 'bg-blue-400' : 'bg-amber-400'}`} />
-              <span>{chainId === xLayerMainnet.id ? 'X Layer Mainnet' : chainId === xLayerTestnet.id ? 'X Layer Testnet' : 'Local Anvil (31337)'}</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
-            <div className="absolute right-0 mt-1 w-44 rounded-xl bg-slate-900 border border-slate-800 p-1 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+          {/* Regional Currency Toggle Pill (⚡ SATS | ₦ NGN | CFA XOF) */}
+          <div className="flex items-center p-1 rounded-xl bg-slate-900 border border-slate-800">
+            {(['SATS', 'NGN', 'XOF'] as Currency[]).map((c) => (
               <button
-                onClick={() => handleSwitchNetwork(xLayerMainnet.id)}
-                className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg flex items-center justify-between cursor-pointer"
+                key={c}
+                onClick={() => setCurrency(c)}
+                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                  currency === c
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
               >
-                <span>X Layer Mainnet</span>
-                <span className="text-[10px] text-slate-500 font-mono">196</span>
+                {c === 'SATS' ? (
+                  <>
+                    <Zap className="w-3 h-3 fill-current" />
+                    <span>SATS</span>
+                  </>
+                ) : c === 'NGN' ? (
+                  <span>₦ NGN</span>
+                ) : (
+                  <span>CFA XOF</span>
+                )}
               </button>
-              <button
-                onClick={() => handleSwitchNetwork(xLayerTestnet.id)}
-                className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg flex items-center justify-between cursor-pointer"
-              >
-                <span>X Layer Testnet</span>
-                <span className="text-[10px] text-slate-500 font-mono">1952</span>
-              </button>
-            </div>
+            ))}
           </div>
 
-          {/* Wallet Connect & EIP-6963 Selector */}
-          {isConnected && address ? (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600/10 border border-blue-500/30 text-blue-300 text-xs font-mono">
-                {selectedRdns === 'io.metamask' ? (
-                  <span className="w-2 h-2 rounded-full bg-amber-400" title="MetaMask" />
-                ) : selectedRdns === 'com.okex.wallet' ? (
-                  <span className="w-2 h-2 rounded-full bg-white" title="OKX Wallet" />
-                ) : (
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                )}
-                <span>{address.substring(0, 6)}...{address.substring(address.length - 4)}</span>
-                <button
-                  onClick={() => disconnectWallet()}
-                  className="text-slate-400 hover:text-rose-400 transition cursor-pointer ml-1"
-                  title="Disconnect Wallet"
-                >
-                  <LogOut className="w-3 h-3" />
-                </button>
-              </div>
-
-              {/* Reset Wallet Session Button (clears stale wagmi/portal storage) */}
-              <button
-                onClick={() => resetWalletSession()}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-amber-400 text-xs font-medium transition cursor-pointer"
-                title="Reset session & clear conflicting wallet storage"
-              >
-                <RefreshCw className="w-3 h-3" />
-                <span className="hidden sm:inline">Reset</span>
-              </button>
-            </div>
-          ) : (
-            <div className="relative">
-              <button
-                onClick={() => setShowWalletModal(!showWalletModal)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/25 transition active:scale-95 cursor-pointer"
-              >
-                <Wallet className="w-3.5 h-3.5" />
-                <span>Connect Wallet</span>
-                <ChevronDown className="w-3 h-3 ml-0.5 opacity-70" />
-              </button>
-
-              {/* EIP-6963 Direct Discovered Wallets Dropdown */}
-              {showWalletModal && (
-                <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-[#121824] border border-slate-800 p-2 shadow-2xl z-50 space-y-1 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between px-2 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800/80 mb-1">
-                    <span>Select Wallet (EIP-6963)</span>
-                    <button
-                      onClick={() => setShowWalletModal(false)}
-                      className="text-slate-500 hover:text-white"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {providers && providers.length > 0 ? (
-                    providers.map((p) => (
-                      <button
-                        key={p.info.uuid || p.info.rdns}
-                        onClick={async () => {
-                          try {
-                            await selectWallet(p.info.rdns);
-                          } catch (e: any) {
-                            console.error('Wallet select failed:', e);
-                          }
-                          setShowWalletModal(false);
-                        }}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-white hover:bg-slate-800/80 transition cursor-pointer group"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          {p.info.icon ? (
-                            <img src={p.info.icon} alt={p.info.name} className="w-4 h-4 rounded" />
-                          ) : (
-                            <Wallet className="w-4 h-4 text-blue-400" />
-                          )}
-                          <span className="font-semibold text-slate-200 group-hover:text-white">{p.info.name}</span>
-                        </div>
-                        <span className="text-[10px] text-slate-500 font-mono">
-                          {p.info.rdns === 'io.metamask' ? 'MetaMask' : p.info.rdns === 'com.okex.wallet' ? 'OKX' : 'EIP-6963'}
-                        </span>
-                      </button>
-                    ))
-                  ) : connectors && connectors.length > 0 ? (
-                    connectors.map((connector) => (
-                      <button
-                        key={connector.uid || connector.id}
-                        onClick={() => {
-                          connect({ connector });
-                          setShowWalletModal(false);
-                        }}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-white hover:bg-slate-800/80 transition cursor-pointer group"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Wallet className="w-4 h-4 text-blue-400" />
-                          <span className="font-semibold text-slate-200 group-hover:text-white">{connector.name}</span>
-                        </div>
-                        <span className="text-[10px] text-slate-500 font-mono">Connector</span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="p-3 text-center text-xs text-slate-400">
-                      No web3 extension detected. Please install OKX Wallet or MetaMask.
-                    </div>
-                  )}
-
-                  <div className="pt-1 border-t border-slate-800/80">
-                    <button
-                      onClick={() => {
-                        resetWalletSession();
-                        setShowWalletModal(false);
-                      }}
-                      className="w-full text-center px-2 py-1.5 text-[11px] text-slate-400 hover:text-amber-400 transition cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      <span>Reset / Clear Cache</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+          {/* Re-Seed Demo Circle Button (For BTrust judges) */}
+          {onResetSeed && (
+            <button
+              onClick={onResetSeed}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 text-xs font-medium transition cursor-pointer"
+              title="Reset to 3-Member Dakar–Lagos Demo Circle"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Reset Demo</span>
+            </button>
           )}
+
+          {/* Nostr Public Key Pill */}
+          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs font-mono">
+            <Key className="w-3.5 h-3.5 text-purple-400" />
+            <span>{npub.substring(0, 8)}...{npub.substring(npub.length - 4)}</span>
+          </div>
+
+          {/* Lightning Wallet Drawer Trigger Button */}
+          <button
+            onClick={openWalletDrawer}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition cursor-pointer active:scale-95"
+          >
+            <Zap className="w-3.5 h-3.5 fill-slate-950" />
+            <span className="font-mono">{formatAmount(balanceSats)}</span>
+            <span className="text-[10px] font-bold uppercase opacity-75">
+              ({walletType})
+            </span>
+          </button>
 
         </div>
       </div>

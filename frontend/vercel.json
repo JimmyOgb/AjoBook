@@ -1,5 +1,5 @@
 {
-  "name": "ajochain",
+  "name": "Ajobook",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
