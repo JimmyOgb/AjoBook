@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { QRCodeSvg } from './QRCodeSvg';
+import { AnkaraPattern } from './AnkaraPattern';
 import { LightningSettlementDrawer } from './LightningSettlementDrawer';
 import { AIStewardPanel } from './AIStewardPanel';
 import { roscaService } from '../services/roscaService';
@@ -27,26 +28,26 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
   onBack,
 }) => {
   const { npub, formatAmount } = useWallet();
-
-  const [circle, setCircle] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Settlement & Modals
+  const [circle, setCircle] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSettlementOpen, setIsSettlementOpen] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
+
+  // Sign Name Form state
   const [joinName, setJoinName] = useState('');
   const [isJoining, setIsJoining] = useState(false);
-  const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const fetchCircle = async () => {
     try {
+      setIsLoading(true);
       const data = await roscaService.getCircleById(circleId);
       setCircle(data);
-    } catch (err: any) {
-      console.warn('Error loading circle:', err);
+    } catch (err) {
+      console.error('Failed to load circle:', err);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -56,34 +57,17 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
     return () => clearInterval(interval);
   }, [circleId]);
 
-  // Turn timer countdown
-  const [timeLeftStr, setTimeLeftStr] = useState<string>('04:00');
-  useEffect(() => {
-    if (!circle?.turnDeadline) return;
-    const timer = setInterval(() => {
-      const remainingMs = circle.turnDeadline - Date.now();
-      if (remainingMs <= 0) {
-        setTimeLeftStr('00:00 (Overdue)');
-      } else {
-        const mins = Math.floor(remainingMs / 60000);
-        const secs = Math.floor((remainingMs % 60000) / 1000);
-        setTimeLeftStr(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
-      }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [circle?.turnDeadline]);
-
   const handleJoinCircle = async () => {
     if (!joinName.trim()) return;
     try {
       setIsJoining(true);
-      await roscaService.joinCircle(circle.id, joinName.trim(), npub);
+      await roscaService.joinCircle(circleId, joinName.trim(), npub);
       setJoinName('');
-      setActionSuccessMsg(`Welcome, ${joinName}! Signed into the exercise book.`);
-      setTimeout(() => setActionSuccessMsg(null), 3000);
+      setActionSuccessMsg(`Successfully signed into exercise book as "${joinName.trim()}"!`);
+      setTimeout(() => setActionSuccessMsg(null), 4000);
       fetchCircle();
-    } catch (e: any) {
-      console.error(e);
+    } catch (err: any) {
+      alert(err.message || 'Error signing name into circle');
     } finally {
       setIsJoining(false);
     }
@@ -98,7 +82,7 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
         circle.turnDeadline = Date.now() + (circle.turnDuration * 1000);
         setActionSuccessMsg('Exercise book started! Turn #1 is live.');
         setTimeout(() => setActionSuccessMsg(null), 3000);
-        fetchCircle();
+        setCircle({ ...circle });
       }
     } catch (e) {
       console.error(e);
@@ -118,33 +102,56 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
         });
         setActionSuccessMsg('Overdue turn settled with deposit escrow safeguard!');
         setTimeout(() => setActionSuccessMsg(null), 3000);
-        fetchCircle();
+        setCircle({ ...circle });
       }
     } catch (e) {
       console.error(e);
     }
   };
 
-  if (loading && !circle) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm text-slate-400 font-mono">Opening Ajo Exercise Book...</p>
-        </div>
-      </div>
-    );
-  }
+  // Metrics computation
+  const totalMembers = circle?.members?.length || 0;
+  const contributionSats = circle?.contributionAmountSats || circle?.contributionAmount || 5000;
+  const potSizeSats = contributionSats * (totalMembers || circle?.maxMembers || 3);
+  const netPotSats = Math.floor(potSizeSats * 0.995);
 
   const currentTurn = circle?.currentTurn || 1;
   const currentRecipient = circle?.members?.find((m: any) => m.slot === currentTurn) || circle?.members?.[0];
-  const contributionSats = circle?.contributionAmountSats || 5000;
-  const totalMembers = circle?.members?.length || 3;
-  const grossPotSats = contributionSats * totalMembers;
-  const netPotSats = Math.floor(grossPotSats * 0.995);
 
-  const myMember = circle?.members?.find((m: any) => m.name?.includes('You') || m.name?.includes('Chidi')) || circle?.members?.[circle?.members?.length - 1];
+  // User participant mapping
+  const myMember = circle?.members?.find((m: any) => m.npub === npub || m.name?.includes('You') || m.name?.includes('Chidi')) || circle?.members?.[circle?.members?.length - 1];
   const hasMyMemberPaid = myMember?.paidCurrent || circle?.currentTurnPaid?.includes(myMember?.slot);
+
+  // Deadline countdown string
+  const [timeLeftStr, setTimeLeftStr] = useState<string>('00:00');
+  useEffect(() => {
+    if (!circle || circle.status !== 'ACTIVE') return;
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const diff = (circle.turnDeadline || now) - now;
+      if (diff <= 0) {
+        setTimeLeftStr('Overdue (Ready to Disburse)');
+      } else {
+        const mins = Math.floor(diff / 60000);
+        const secs = Math.floor((diff % 60000) / 1000);
+        setTimeLeftStr(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [circle]);
+
+  if (isLoading && !circle) {
+    return (
+      <div className="py-24 text-center text-slate-400 font-mono space-y-3">
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-xs">Loading live Ajo exercise book from Nostr &amp; Lightning engine...</p>
+      </div>
+    );
+  }
 
   const inviteUrl = typeof window !== 'undefined'
     ? `${window.location.origin}${window.location.pathname}?circle=${circle?.id || circleId}`
@@ -166,7 +173,7 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
           className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition w-fit cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to All Circles</span>
+          <span>Back to All Exercise Books</span>
         </button>
 
         <div className="flex items-center gap-2.5 flex-wrap">
@@ -180,31 +187,33 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
         </div>
       </div>
 
-      {/* Circle Header Card */}
-      <div className="p-6 rounded-3xl bg-gradient-to-br from-[#121824] via-[#161F30] to-[#0D131F] border border-slate-800 shadow-2xl relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      {/* Circle Exercise Book Header Card */}
+      <div className="p-6 rounded-3xl ajo-hero-frame border border-slate-800 shadow-2xl relative overflow-hidden border-l-4 border-l-rose-500/70 backdrop-blur-md">
+        <AnkaraPattern className="text-emerald-400 opacity-[0.035]" />
+        
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border ${
-                circle?.status === 'OPEN' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                circle?.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                'bg-blue-500/10 text-blue-400 border-blue-500/20'
+              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border whitespace-nowrap ${
+                circle?.status === 'OPEN' ? 'bg-amber-500/10 text-amber-400 border-amber-500/25' :
+                circle?.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' :
+                'bg-blue-500/10 text-blue-400 border-blue-500/25'
               }`}>
-                {circle?.status === 'OPEN' ? 'Circle Forming (Open for Joins)' : circle?.status === 'ACTIVE' ? `Turn ${currentTurn} of ${totalMembers}` : 'Completed'}
+                {circle?.status === 'OPEN' ? 'Book Forming (Open for Joins)' : circle?.status === 'ACTIVE' ? `Turn ${currentTurn} of ${totalMembers}` : 'Completed'}
               </span>
-              <span className="text-xs text-slate-400 font-mono">
-                Host: <span className="text-white font-medium">{circle?.hostName}</span>
+              <span className="text-xs text-slate-300 font-mono">
+                Host: <span className="font-serif italic text-amber-300 font-semibold">{circle?.hostName}</span>
               </span>
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-blue-400" />
+              <BookOpen className="w-6 h-6 text-emerald-400" />
               <span>{circle?.name}</span>
             </h1>
 
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 font-mono">
               <span>
-                Ledger ID: <span className="text-blue-400 font-mono">{circle?.id}</span>
+                Ledger ID: <span className="text-emerald-400 font-mono">{circle?.id}</span>
               </span>
               <span className="inline-flex items-center gap-1 text-amber-300 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
                 <Zap className="w-3 h-3 fill-amber-400" />
@@ -377,24 +386,26 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
         </div>
       )}
 
-      {/* ─── MEMBER TURN SCHEDULE & LEDGER TABLE ─── */}
-      <div className="bg-[#121824] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+      {/* ─── THE EXERCISE BOOK LEDGER TABLE ─── */}
+      <div className="bg-[#0e1726]/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl border-l-4 border-l-rose-500/70 backdrop-blur-md relative">
+        <AnkaraPattern className="text-emerald-400 opacity-[0.02]" />
+
+        <div className="p-5 border-b border-slate-800 flex items-center justify-between relative z-10">
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-blue-400" />
-              <span>Member Turn Schedule &amp; Ledger</span>
+              <BookOpen className="w-4 h-4 text-emerald-400" />
+              <span>Exercise Book Member Ledger</span>
             </h3>
             <p className="text-xs text-slate-400">Order of turns, deposit coverage, and current payment status</p>
           </div>
-          <span className="text-xs font-mono text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20">
-            {totalMembers} {totalMembers === 1 ? 'member' : 'members'} joined
+          <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+            {totalMembers} {totalMembers === 1 ? 'member' : 'members'} signed in book
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto relative z-10">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-900/80 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
+            <thead className="bg-slate-900/90 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
               <tr>
                 <th className="px-5 py-3 font-semibold">Turn #</th>
                 <th className="px-5 py-3 font-semibold">Member Name &amp; Pubkey</th>
@@ -403,19 +414,19 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
                 <th className="px-5 py-3 font-semibold text-right">Payout Turn Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/80">
+            <tbody className="divide-y divide-blue-900/30">
               {circle?.members?.map((m: any) => {
                 const isCurrentCollector = circle?.status === 'ACTIVE' && m.slot === currentTurn;
                 const isPastCollector = m.slot < currentTurn;
                 const isPaid = m.paidCurrent || circle?.currentTurnPaid?.includes(m.slot);
 
                 return (
-                  <tr key={m.slot} className="hover:bg-slate-900/40 transition">
+                  <tr key={m.slot} className="hover:bg-slate-900/50 transition">
                     <td className="px-5 py-3.5 font-bold font-mono text-white">
                       Turn #{m.slot}
                     </td>
                     <td className="px-5 py-3.5">
-                      <div className="font-bold text-white text-xs">{m.name}</div>
+                      <div className="font-serif italic font-semibold text-amber-200 text-sm tracking-wide">{m.name}</div>
                       <span className="font-mono text-[10px] text-slate-400">
                         {m.npub ? `${m.npub.substring(0, 10)}...${m.npub.substring(m.npub.length - 6)}` : 'Nostr Verified'}
                       </span>
@@ -428,24 +439,18 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
                     </td>
                     <td className="px-5 py-3.5">
                       {circle?.status === 'OPEN' ? (
-                        <span className="text-slate-500 italic">Circle forming</span>
+                        <span className="text-slate-500 italic font-serif">Book forming</span>
                       ) : isPaid ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold">
-                          <CheckCircle2 className="w-3 h-3" /> Paid
-                        </span>
+                        <span className="stamp-paid">PAID</span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[11px] font-semibold">
-                          Pending
-                        </span>
+                        <span className="stamp-pending">PENDING</span>
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-right font-semibold">
                       {circle?.status === 'COMPLETED' ? (
                         <span className="text-blue-400 font-mono text-xs">All Completed</span>
                       ) : isCurrentCollector ? (
-                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold uppercase animate-pulse">
-                          Collecting Now
-                        </span>
+                        <span className="stamp-collecting">COLLECTING NOW</span>
                       ) : isPastCollector ? (
                         <span className="text-slate-500 text-[11px] font-mono">Disbursed</span>
                       ) : (
@@ -519,22 +524,22 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
             </div>
 
             <div className="flex justify-center py-2">
-              <div className="p-3 bg-white rounded-xl shadow-md">
+              <div className="p-3 bg-white rounded-xl shadow-lg">
                 <QRCodeSvg value={inviteUrl} size={180} />
               </div>
             </div>
 
-            <p className="text-[11px] text-slate-400">
-              Scan with any Lightning wallet or share the link to join directly with a chosen display name.
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Scan QR code with phone camera or Nostr mobile client to sign your name in this exercise book.
             </p>
 
-            <div className="flex items-center gap-2 bg-slate-900 p-2 rounded-xl border border-slate-800 text-[10px] font-mono text-slate-300">
-              <span className="truncate flex-1 text-left">{inviteUrl}</span>
+            <div className="pt-2">
               <button
                 onClick={copyInvite}
-                className="px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-sans font-bold transition cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg transition cursor-pointer flex items-center justify-center gap-2"
               >
-                {copiedLink ? 'Copied!' : 'Copy'}
+                {copiedLink ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+                <span>{copiedLink ? 'Link Copied to Clipboard!' : 'Copy Invite Link'}</span>
               </button>
             </div>
           </div>

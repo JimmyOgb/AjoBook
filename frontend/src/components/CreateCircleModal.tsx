@@ -67,8 +67,8 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
               {step}
             </div>
             <div>
-              <h3 className="text-base font-semibold text-white">Create New Savings Circle</h3>
-              <p className="text-xs text-slate-400">Step {step} of 2: {step === 1 ? 'Circle & Cadence' : 'Deposit & Pot Economics'}</p>
+              <h3 className="text-base font-semibold text-white">Create New Ajo Exercise Book</h3>
+              <p className="text-xs text-slate-400">Step {step} of 2: {step === 1 ? 'Exercise Book & Cadence' : 'Deposit & Pot Economics'}</p>
             </div>
           </div>
           <button
@@ -85,7 +85,7 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
           {step === 1 && (
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Circle Title</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Circle Title (Exercise Book Name)</label>
                 <input
                   type="text"
                   value={circleName}
