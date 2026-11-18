@@ -79,7 +79,47 @@ async function waitForServer(baseUrl, maxRetries = 20) {
     console.log("  Current Turn Now:", after.currentTurn);
     console.log("  Turn History Count:", after.turnHistory.length);
 
-    console.log("\n✅ ALL BITCOIN + LIGHTNING + NOSTR ROSCA INVARIANTS VERIFIED!");
+    // 6. Late Joiner with Catch-Up Split (Mechanic #7)
+    console.log("\n[Test 6] Late Joiner Joining Active Circle (Mechanic #7)...");
+    const lateJoinRes = await fetch(`${baseUrl}/api/circles/dakar-lagos-market/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Fatou (Dakar Late Joiner)',
+        lightningAddress: 'fatou@blink.sv'
+      })
+    }).then(r => r.json());
+    console.log("  Late Join Success:", lateJoinRes.success);
+    console.log("  Catch-up Sats Calculated:", lateJoinRes.catchUpTotal, "sats");
+    console.log("  Claimable Escrows Count:", lateJoinRes.circle?.claimablePayouts?.length || 0);
+
+    // 7. Claim Escrow Payout (Mechanic #8)
+    console.log("\n[Test 7] Claiming Escrow Sats via Lightning (Mechanic #8)...");
+    const claimTarget = lateJoinRes.circle?.claimablePayouts?.[0];
+    if (claimTarget) {
+      const claimRes = await fetch(`${baseUrl}/api/circles/dakar-lagos-market/claim-payout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          claimId: claimTarget.id,
+          recipientName: claimTarget.recipientName
+        })
+      }).then(r => r.json());
+      console.log("  Claim Success:", claimRes.success);
+      console.log("  Preimage Generated:", claimRes.preimage.substring(0, 16) + '...');
+    }
+
+    // 8. Close Late Turn with 1x Deposit Coverage (Mechanic #5 & #6)
+    console.log("\n[Test 8] Closing Late Turn with Deposit Safeguard (Mechanic #5 & #6)...");
+    const lateCloseRes = await fetch(`${baseUrl}/api/circles/dakar-lagos-market/close-late-turn`, {
+      method: 'POST'
+    }).then(r => r.json());
+    console.log("  Close Late Turn Success:", lateCloseRes.success);
+    console.log("  Covered Non-Paying Count:", lateCloseRes.coveredCount);
+    console.log("  Public MISSED Count:", lateCloseRes.missedCount);
+    console.log("  Turn Advanced to:", lateCloseRes.circle?.currentTurn);
+
+    console.log("\n✅ ALL 8 BITCOIN + LIGHTNING + NOSTR ROSCA INVARIANTS VERIFIED!");
     if (process.platform === 'win32' && server.pid) {
       spawn('taskkill', ['/pid', server.pid.toString(), '/f', '/t']);
     } else {

@@ -20,6 +20,7 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
   const [cadenceSeconds, setCadenceSeconds] = useState('300'); // 5 mins demo by default
   const [maxMembers, setMaxMembers] = useState('3');
   const [requireDeposit, setRequireDeposit] = useState(true);
+  const [isOpenForLateJoiners, setIsOpenForLateJoiners] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -37,7 +38,8 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
         contributionAmountSats: Number(contributionSats),
         turnDuration: Number(cadenceSeconds),
         maxMembers: Number(maxMembers),
-        requireDeposit
+        requireDeposit,
+        isOpenForLateJoiners
       };
 
       const created = await roscaService.createCircle(payload);
@@ -192,6 +194,23 @@ export const CreateCircleModal: React.FC<CreateCircleModalProps> = ({ isOpen, on
                   <span className="font-bold text-stone-900 block">Require 1x Escrow Deposit Safeguard</span>
                   <span className="text-stone-500 block leading-relaxed">
                     Members lock 1 turn worth of sats upfront. If a participant defaults, their escrow is slashed into the communal pot so the round recipient is never shortchanged.
+                  </span>
+                </label>
+              </div>
+
+              {/* Keep Registration Open for Late Joiners */}
+              <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200 flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="isOpenForLateJoiners"
+                  checked={isOpenForLateJoiners}
+                  onChange={(e) => setIsOpenForLateJoiners(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-700 focus:ring-emerald-600 cursor-pointer"
+                />
+                <label htmlFor="isOpenForLateJoiners" className="text-xs cursor-pointer">
+                  <span className="font-bold text-stone-900 block">Keep Registration Open for Late Joiners</span>
+                  <span className="text-stone-500 block leading-relaxed">
+                    Allows newcomers to enter mid-cycle. Late joiners pay regular contribution + catch-up sats (1x elapsed turns) which are split equally to past turn collectors.
                   </span>
                 </label>
               </div>
