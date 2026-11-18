@@ -5,7 +5,8 @@ import {
   Copy,
   Check,
   CheckCircle2,
-  Receipt
+  Receipt,
+  ShieldCheck
 } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { QRCodeSvg } from './QRCodeSvg';
@@ -24,11 +25,13 @@ export const LightningSettlementDrawer: React.FC<LightningSettlementDrawerProps>
   circle,
   onPaymentSuccess
 }) => {
-  const { payInvoice, formatAmount, balanceSats } = useWallet();
+  const { payInvoice, formatAmount, balanceSats, walletType, lastPreimage } = useWallet();
   const [isPaying, setIsPaying] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
+  const [settledPreimage, setSettledPreimage] = useState<string | null>(null);
   const [payError, setPayError] = useState<string | null>(null);
   const [copiedInvoice, setCopiedInvoice] = useState(false);
+  const [copiedPreimage, setCopiedPreimage] = useState(false);
 
   if (!isOpen || !circle) return null;
 
@@ -48,6 +51,7 @@ export const LightningSettlementDrawer: React.FC<LightningSettlementDrawerProps>
 
       // 1. Pay via WalletContext (deducts from local demo wallet or broadcasts NWC)
       const paymentRes = await payInvoice(mockBolt11, contributionAmountSats);
+      setSettledPreimage(paymentRes.preimage);
 
       // 2. Report payment via dual-mode roscaService (works on Vercel standalone & with backend)
       await roscaService.payTurnContribution(
@@ -71,6 +75,12 @@ export const LightningSettlementDrawer: React.FC<LightningSettlementDrawerProps>
     navigator.clipboard.writeText(mockBolt11);
     setCopiedInvoice(true);
     setTimeout(() => setCopiedInvoice(false), 2500);
+  };
+
+  const copyPreimage = (hex: string) => {
+    navigator.clipboard.writeText(hex);
+    setCopiedPreimage(true);
+    setTimeout(() => setCopiedPreimage(false), 2500);
   };
 
   return (
@@ -135,11 +145,37 @@ export const LightningSettlementDrawer: React.FC<LightningSettlementDrawerProps>
                 </div>
               </div>
 
-              {/* Action Button */}
+              {/* Action Button & Settled Preimage Display */}
               {isAlreadyPaid || paySuccess ? (
-                <div className="w-full py-3 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold text-xs flex items-center justify-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Contribution Settled for Turn #{currentTurn}!</span>
+                <div className="w-full space-y-3">
+                  <div className="w-full py-3 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold text-xs flex items-center justify-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Contribution Settled for Turn #{currentTurn}!</span>
+                  </div>
+
+                  {(settledPreimage || lastPreimage) && (
+                    <div className="p-3.5 rounded-xl bg-slate-950 border border-emerald-500/30 text-left space-y-2">
+                      <div className="flex items-center justify-between text-[11px] text-emerald-400 font-semibold">
+                        <span className="flex items-center gap-1.5">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                          BOLT11 Payment Preimage (Cryptographic Proof)
+                        </span>
+                        <button
+                          onClick={() => copyPreimage(settledPreimage || lastPreimage || '')}
+                          className="text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer font-mono text-[10px]"
+                        >
+                          {copiedPreimage ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedPreimage ? 'Copied' : 'Copy Proof'}</span>
+                        </button>
+                      </div>
+                      <p className="font-mono text-[10px] text-emerald-300 break-all p-2 rounded-lg bg-slate-900 border border-slate-800">
+                        {settledPreimage || lastPreimage}
+                      </p>
+                      <span className="text-[10px] text-slate-500 block">
+                        Settled via {walletType === 'NWC' ? 'NWC Remote Lightning Node' : 'Built-in Demo Lightning Wallet'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="w-full space-y-2">

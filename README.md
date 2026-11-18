@@ -9,17 +9,30 @@
 
 ## 🌟 Live Links & Core Features
 
-- 🌐 **Live Vercel Production dApp:** **[https://ajobook.vercel.app](https://ajobook.vercel.app)**
+- 🌐 **Live Vercel Production dApp:** **[https://ajobook-blue.vercel.app](https://ajobook-blue.vercel.app)** *(also accessible at [https://ajobook.vercel.app](https://ajobook.vercel.app))*
 - 💻 **GitHub Repository:** **[https://github.com/JimmyOgb/AjoBook](https://github.com/JimmyOgb/AjoBook)**
 - ⚡ **Pure Bitcoin & Lightning Settlement:** Invoices generated in Satoshis (BOLT11) with instant sub-second settlement.
 - 🌍 **West African Currency Toggle:** Switch effortlessly between **SATS**, **Nigerian Naira (₦)**, and **Franc CFA (XOF)**.
 - 🔑 **Nostr Native Identity & State:** Keypair generation (`npub` / `nsec`), NIP-07 browser extension support, Kind `30078` signed communal state, and Kind `8` NIP-58 turn completion badges.
 - 👛 **Effortless Wallet Modes in Drawer:**
-  - **1-Click Built-in Demo Wallet:** Pre-funded with **100,000 sats** for instant 30-second testing without external wallet setup!
-  - **NWC (Nostr Wallet Connect):** Paste any `nostr+walletconnect://...` URI (Alby Hub, LNbits, Umbrel) for real mainnet/testnet transactions.
+  - **1-Click Built-in Demo Wallet:** Pre-funded with **100,000 sats** by default on first visit (zero setup or extensions required).
+  - **NWC (Nostr Wallet Connect / NIP-47):** Seamlessly connects to **Mutinynet (Signet)**, **Testnet4**, or **Mainnet** nodes.
 - 🛡️ **1x Security Deposit Escrow:** Automatic default slashing protects honest members against missed turns.
 - 🤖 **AI Bookkeeper & Steward:** Real-time circle health scoring (0-100), default risk modeling, and 1-click reminders in **English**, **Français** (Dakar Tontine), and **Nigerian Pidgin**.
 - 📓 **Authentic African Exercise Book UX:** Clean notebook margins, Adire / Ankara geometric textile patterns, and human participant names (*Aminata*, *Tunde*, *Chidi*).
+
+---
+
+## ⚡ Supported Bitcoin Networks & Testing Modes
+
+AjoBook is engineered for progressive, zero-friction onboarding—enabling hackathon judges and non-technical market participants to experience instant rotational savings without initial wallet configuration, while providing full cryptographic self-custody for live Bitcoin nodes.
+
+| Testing Mode | Network / Protocol | How It Works | Ideal For |
+| :--- | :--- | :--- | :--- |
+| **Instant Judge Mode** | **Built-in Lightning Wallet** (100,000 sats) | Active by default on first load (never blocks page load with a wallet modal). Deducts sats locally and generates SHA-256 settlement preimages. **Zero setup required.** | Immediate hackathon evaluation, 30-second walkthrough, testing multi-turn pot distributions. |
+| **Real Lightning Settlement Mode** | **Mutinynet (Signet)** via NWC (`lntbs`) | Connect any NIP-47 remote wallet. Need free Signet test sats? Instantly fund your wallet at [https://faucet.mutinynet.com](https://faucet.mutinynet.com). | Verifying live NIP-47 RPC calls, relay syncing, and BOLT11 invoices without spending real funds. |
+| **Testnet4 Settlement Mode** | **Testnet4** via NWC (`lntb`) | Connect standard Testnet4 Lightning nodes via Alby Hub, Umbrel, or Core Lightning. | Full multi-node network verification and stress testing on Bitcoin Testnet4. |
+| **Mainnet Production Mode** | **Bitcoin Mainnet** via NWC (`lnbc`) | Connect production self-custodial Lightning nodes (Alby Hub, Umbrel, LNbits, Phoenix). | Real-world communal rotational savings circles with instant satoshi settlement. |
 
 ---
 
@@ -59,11 +72,16 @@ npm test
    - The **Lightning Settlement Drawer** opens with a live BOLT11 invoice & QR code.
    - Click **"1-Tap Pay 5,000 sats"**.
 6. **Watch the Magic Happen:**
+   - Your contribution settles instantly, displaying the **cryptographic SHA-256 BOLT11 Preimage proof** directly in the drawer with 1-click copy.
    - As soon as your 3rd payment registers, the autonomous engine triggers the **Pot Payout**!
    - 14,925 sats are disbursed to Aminata.
    - A signed **Nostr NIP-58 Completion Badge** (`nevent`) is stamped into the ledger.
    - The circle automatically advances to Round #2!
-7. Check the **AI Bookkeeper & Steward** panel:
+7. **Optional: Test Real Lightning via NWC (Mutinynet Signet / Mainnet):**
+   - Click the Wallet button in the header to open the **Lightning Wallet Drawer**.
+   - Switch to **NWC Protocol** and paste your `nostr+walletconnect://...` URI (claim free Signet sats from [https://faucet.mutinynet.com](https://faucet.mutinynet.com)).
+   - Inspect the connected relay, network badge, and real node balance alongside settlement proofs.
+8. Check the **AI Bookkeeper & Steward** panel:
    - View the Circle Health Score (100/100, LOW RISK).
    - Test generating payment reminders in **English**, **Français**, and **Nigerian Pidgin**.
 

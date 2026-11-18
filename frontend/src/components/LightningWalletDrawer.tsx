@@ -10,7 +10,9 @@ import {
   ExternalLink,
   ShieldCheck,
   Globe2,
-  QrCode
+  QrCode,
+  Radio,
+  Server
 } from 'lucide-react';
 import { useWallet, Currency } from '../context/WalletContext';
 import { QRCodeSvg } from './QRCodeSvg';
@@ -25,6 +27,8 @@ export const LightningWalletDrawer: React.FC = () => {
     setWalletType,
     balanceSats,
     nwcUrl,
+    nwcInfo,
+    lastPreimage,
     connectNwc,
     disconnectNwc,
     resetDemoWallet,
@@ -236,27 +240,68 @@ export const LightningWalletDrawer: React.FC = () => {
               {walletType === 'NWC' && (
                 <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Connect your self-custodial Alby Hub, LNbits, or Umbrel node via Nostr Wallet Connect (NIP-47).
+                    Connect your self-custodial Alby Hub, LNbits, Mutiny, or Umbrel node via Nostr Wallet Connect (NIP-47).
                   </p>
                   {nwcUrl ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
-                        <span className="flex items-center gap-1.5 font-medium">
-                          <ShieldCheck className="w-4 h-4" /> NWC Active
-                        </span>
-                        <button
-                          onClick={disconnectNwc}
-                          className="text-rose-400 hover:underline cursor-pointer"
-                        >
-                          Disconnect
-                        </button>
+                    <div className="space-y-3">
+                      {/* Connection Status Card */}
+                      <div className="p-3 rounded-xl bg-slate-950 border border-emerald-500/30 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="flex items-center gap-1.5 font-bold text-emerald-400">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            NWC Connected &amp; Synced
+                          </span>
+                          <button
+                            onClick={disconnectNwc}
+                            className="text-[11px] text-rose-400 hover:text-rose-300 hover:underline cursor-pointer font-medium"
+                          >
+                            Disconnect
+                          </button>
+                        </div>
+
+                        {/* Relay & Network Details */}
+                        <div className="space-y-1.5 pt-1 text-[11px] text-slate-300 font-mono">
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500 flex items-center gap-1">
+                              <Server className="w-3 h-3 text-slate-400" /> Relay:
+                            </span>
+                            <span className="text-amber-300 truncate max-w-[200px]" title={nwcInfo?.relay}>
+                              {nwcInfo?.relay || 'wss://relay.getalby.com/v1'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500 flex items-center gap-1">
+                              <Radio className="w-3 h-3 text-slate-400" /> Network:
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold text-[10px]">
+                              {nwcInfo?.network || 'Mutinynet / Signet'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500 flex items-center gap-1">
+                              <Zap className="w-3 h-3 text-amber-400" /> Real Node Balance:
+                            </span>
+                            <span className="text-white font-bold">
+                              {balanceSats.toLocaleString()} sats
+                            </span>
+                          </div>
+
+                          {nwcInfo?.lud16 && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-500">Lightning Address:</span>
+                              <span className="text-purple-300">{nwcInfo.lud16}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-[11px] font-mono text-slate-500 truncate">
-                        {nwcUrl}
-                      </p>
                     </div>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       <input
                         type="password"
                         placeholder="nostr+walletconnect://..."
@@ -264,6 +309,30 @@ export const LightningWalletDrawer: React.FC = () => {
                         onChange={(e) => setInputNwc(e.target.value)}
                         className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-white placeholder-slate-600 focus:outline-none focus:border-amber-500"
                       />
+
+                      {/* Clean Badge / Helper Note */}
+                      <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-[11px] text-amber-200/90 leading-relaxed space-y-1">
+                        <div className="flex items-center gap-1 font-bold text-amber-300">
+                          <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          <span>Supported Networks &amp; Free Test Sats</span>
+                        </div>
+                        <p className="text-slate-300">
+                          Supports <strong>Mainnet</strong> (<code className="font-mono text-amber-300">lnbc</code>), <strong>Mutinynet / Signet</strong> (<code className="font-mono text-amber-300">lntbs</code>), and <strong>Testnet4</strong> (<code className="font-mono text-amber-300">lntb</code>) via NWC.
+                        </p>
+                        <p className="pt-0.5">
+                          Need free Signet test sats? Get them at{' '}
+                          <a
+                            href="https://faucet.mutinynet.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-amber-400 underline font-semibold hover:text-white inline-flex items-center gap-0.5"
+                          >
+                            https://faucet.mutinynet.com
+                            <ExternalLink className="w-3 h-3 inline" />
+                          </a>
+                        </p>
+                      </div>
+
                       <button
                         onClick={handleConnectNwc}
                         className="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition cursor-pointer"
@@ -275,6 +344,31 @@ export const LightningWalletDrawer: React.FC = () => {
                       )}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Settled BOLT11 Preimage Proof Card (Display on Settlement) */}
+              {lastPreimage && (
+                <div className="p-3.5 rounded-xl bg-slate-900 border border-emerald-500/30 space-y-2 animate-in fade-in">
+                  <div className="flex items-center justify-between text-xs font-semibold text-emerald-400">
+                    <span className="flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      BOLT11 Settlement Preimage Proof
+                    </span>
+                    <button
+                      onClick={() => copyToClipboard(lastPreimage, 'lastPreimage')}
+                      className="text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer font-mono text-[11px]"
+                    >
+                      {copiedKey === 'lastPreimage' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedKey === 'lastPreimage' ? 'Copied' : 'Copy Proof'}</span>
+                    </button>
+                  </div>
+                  <p className="p-2 rounded-lg bg-slate-950 border border-slate-800 font-mono text-[10px] text-emerald-300 break-all">
+                    {lastPreimage}
+                  </p>
+                  <span className="text-[10px] text-slate-500 block">
+                    Cryptographic proof of Lightning payment settlement (SHA-256 Preimage)
+                  </span>
                 </div>
               )}
             </div>

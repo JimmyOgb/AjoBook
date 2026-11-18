@@ -8,6 +8,29 @@ export type Currency = 'SATS' | 'NGN' | 'XOF';
 
 export type WalletType = 'DEMO' | 'NWC' | 'NIP07';
 
+export interface NwcInfo {
+  relay: string;
+  pubkey?: string;
+  lud16?: string;
+  network?: string;
+  alias?: string;
+}
+
+export function parseNwcUrl(rawUrl: string): { pubkey?: string; relay?: string; lud16?: string } | null {
+  try {
+    const clean = rawUrl.trim();
+    if (!clean.startsWith('nostr+walletconnect://')) return null;
+    const dummyHttp = clean.replace('nostr+walletconnect://', 'http://');
+    const parsed = new URL(dummyHttp);
+    const pubkey = parsed.hostname || parsed.pathname.replace(/^\/\//, '');
+    const relay = parsed.searchParams.get('relay') || undefined;
+    const lud16 = parsed.searchParams.get('lud16') || undefined;
+    return { pubkey, relay, lud16 };
+  } catch {
+    return null;
+  }
+}
+
 export interface WalletContextType {
   // Nostr Identity
   npub: string;
@@ -23,6 +46,8 @@ export interface WalletContextType {
   setWalletType: (type: WalletType) => void;
   balanceSats: number;
   nwcUrl: string;
+  nwcInfo: NwcInfo | null;
+  lastPreimage: string | null;
   setNwcUrl: (url: string) => void;
   connectNwc: (url: string) => Promise<boolean>;
   disconnectNwc: () => void;
@@ -140,7 +165,9 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [demoBalance, setDemoBalance] = useState<number>(() => {
     try {
       const stored = localStorage.getItem(DEMO_BALANCE_STORAGE_KEY);
-      return stored ? Number(stored) : DEFAULT_DEMO_SATS;
+      const parsed = stored ? Number(stored) : NaN;
+      if (!isNaN(parsed) && parsed > 0) return parsed;
+      return DEFAULT_DEMO_SATS;
     } catch {
       return DEFAULT_DEMO_SATS;
     }
@@ -156,16 +183,61 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const [nwcBalance, setNwcBalance] = useState<number>(0);
   const [nwcClient, setNwcClient] = useState<any | null>(null);
+  const [nwcInfo, setNwcInfo] = useState<NwcInfo | null>(() => {
+    try {
+      const stored = localStorage.getItem(NWC_URL_STORAGE_KEY);
+      if (stored) {
+        const parsed = parseNwcUrl(stored);
+        if (parsed) {
+          return {
+            relay: parsed.relay || 'wss://relay.getalby.com/v1',
+            pubkey: parsed.pubkey,
+            lud16: parsed.lud16,
+            network: stored.includes('mutinynet') ? 'Mutinynet (Signet)' : stored.includes('testnet') ? 'Testnet4' : 'Mainnet / Signet'
+          };
+        }
+      }
+    } catch {}
+    return null;
+  });
+  const [lastPreimage, setLastPreimage] = useState<string | null>(null);
 
   const connectNwc = useCallback(async (url: string): Promise<boolean> => {
     if (!url || !url.startsWith('nostr+walletconnect://')) return false;
     try {
+      const parsed = parseNwcUrl(url);
       const client = new nwc.NWCClient({ nostrWalletConnectUrl: url });
       const balanceData = await client.getBalance();
+
+      let detectedNetwork = 'Mutinynet / Signet';
+      let detectedAlias = '';
+      try {
+        const info = await client.getInfo();
+        if (info) {
+          if (info.network) detectedNetwork = info.network.toUpperCase();
+          if (info.alias) detectedAlias = info.alias;
+        }
+      } catch {
+        if (url.includes('mutinynet') || (parsed?.relay && parsed.relay.includes('mutiny'))) {
+          detectedNetwork = 'Mutinynet (Signet)';
+        } else if (url.includes('testnet')) {
+          detectedNetwork = 'Testnet4';
+        } else {
+          detectedNetwork = 'Mainnet / Signet';
+        }
+      }
+
       setNwcClient(client);
       setNwcUrlState(url);
       setWalletType('NWC');
       setNwcBalance(balanceData.balance || 0);
+      setNwcInfo({
+        relay: parsed?.relay || 'wss://relay.getalby.com/v1',
+        pubkey: parsed?.pubkey,
+        lud16: parsed?.lud16,
+        network: detectedNetwork,
+        alias: detectedAlias
+      });
       try { localStorage.setItem(NWC_URL_STORAGE_KEY, url); } catch {}
       return true;
     } catch (err) {
@@ -177,6 +249,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const disconnectNwc = useCallback(() => {
     setNwcClient(null);
     setNwcUrlState('');
+    setNwcInfo(null);
     setWalletType('DEMO');
     try { localStorage.removeItem(NWC_URL_STORAGE_KEY); } catch {}
   }, []);
@@ -189,14 +262,15 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const balanceSats = walletType === 'NWC' ? nwcBalance : demoBalance;
 
   const payInvoice = useCallback(async (bolt11: string, amountSats: number): Promise<{ preimage: string }> => {
+    let preimage = '';
     if (walletType === 'NWC' && nwcClient) {
       const res = await nwcClient.payInvoice({ invoice: bolt11 });
+      preimage = res.preimage || '00000000000000000000000000000000';
       // Refresh balance
       try {
         const bal = await nwcClient.getBalance();
         setNwcBalance(bal.balance || 0);
       } catch {}
-      return { preimage: res.preimage || '00000000000000000000000000000000' };
     } else {
       // Demo Wallet mode: deduct local balance and generate valid preimage
       if (demoBalance < amountSats) {
@@ -207,9 +281,10 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       try { localStorage.setItem(DEMO_BALANCE_STORAGE_KEY, String(newBal)); } catch {}
 
       // Generate random 32-byte hex preimage
-      const preimage = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-      return { preimage };
+      preimage = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
     }
+    setLastPreimage(preimage);
+    return { preimage };
   }, [walletType, nwcClient, demoBalance]);
 
   // ─── 3. Currency Formatting ──────────────────────────────────────────
@@ -257,6 +332,8 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setWalletType,
         balanceSats,
         nwcUrl,
+        nwcInfo,
+        lastPreimage,
         setNwcUrl: setNwcUrlState,
         connectNwc,
         disconnectNwc,

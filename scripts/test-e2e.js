@@ -1,15 +1,33 @@
 import { spawn } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const backendDir = path.resolve(__dirname, '../backend');
 
 console.log("=== AjoBook Bitcoin + Lightning + Nostr E2E Verification ===");
 
 const server = spawn('node', ['server.js'], {
-  cwd: './backend',
+  cwd: backendDir,
+  shell: true,
   stdio: 'inherit'
 });
 
-setTimeout(async () => {
+async function waitForServer(baseUrl, maxRetries = 20) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const res = await fetch(`${baseUrl}/api/health`);
+      if (res.ok) return true;
+    } catch (e) {}
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  throw new Error('Server did not start in time');
+}
+
+(async () => {
   try {
     const baseUrl = 'http://localhost:3001';
+    await waitForServer(baseUrl);
 
     // 1. Health check
     console.log("\n[Test 1] Health Check...");
@@ -62,11 +80,19 @@ setTimeout(async () => {
     console.log("  Turn History Count:", after.turnHistory.length);
 
     console.log("\n✅ ALL BITCOIN + LIGHTNING + NOSTR ROSCA INVARIANTS VERIFIED!");
+    if (process.platform === 'win32' && server.pid) {
+      spawn('taskkill', ['/pid', server.pid.toString(), '/f', '/t']);
+    } else {
+      server.kill();
+    }
     process.exit(0);
   } catch (err) {
     console.error("Test failed:", err);
+    if (process.platform === 'win32' && server.pid) {
+      spawn('taskkill', ['/pid', server.pid.toString(), '/f', '/t']);
+    } else {
+      server.kill();
+    }
     process.exit(1);
-  } finally {
-    server.kill();
   }
-}, 2000);
+})();
