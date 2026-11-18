@@ -97,16 +97,28 @@ export const Header: React.FC<HeaderProps> = ({ onResetSeed }) => {
             <span>{npub.substring(0, 8)}...{npub.substring(npub.length - 4)}</span>
           </div>
 
-          {/* Lightning Wallet Drawer Trigger Button */}
+          {/* Prominent Lightning Wallet & Connect Action Button */}
           <button
             onClick={openWalletDrawer}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition cursor-pointer active:scale-95"
+            className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/25 transition cursor-pointer active:scale-95 border border-amber-300/40 group"
+            title="Open Lightning Wallet Settings • Connect NWC or Browser Extension"
           >
-            <Zap className="w-3.5 h-3.5 fill-slate-950" />
-            <span className="font-mono">{formatAmount(balanceSats)}</span>
-            <span className="text-[10px] font-bold uppercase opacity-75">
-              ({walletType})
-            </span>
+            <div className="w-5 h-5 rounded-lg bg-slate-950/20 flex items-center justify-center">
+              <Zap className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
+            </div>
+            <div className="text-left flex flex-col leading-none">
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono font-black text-xs text-slate-950">
+                  {formatAmount(balanceSats)}
+                </span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-950/20 font-bold uppercase tracking-tight text-slate-950">
+                  {walletType === 'DEMO' ? 'Demo' : walletType === 'NWC' ? 'NWC' : 'Alby'}
+                </span>
+              </div>
+              <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-950/75 pt-0.5 flex items-center gap-1">
+                {walletType === 'DEMO' ? 'Connect Wallet / NWC →' : 'Manage Wallet →'}
+              </span>
+            </div>
           </button>
 
         </div>

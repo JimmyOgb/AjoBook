@@ -207,38 +207,97 @@ export const LightningWalletDrawer: React.FC = () => {
               </div>
             )}
 
-            {/* Mode Switcher: Demo vs NWC */}
+            {/* Mode Switcher: Demo vs NWC vs Extension */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                  Wallet Mode
+                  Wallet Connection Mode
                 </span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setWalletType('DEMO')}
-                    className={`px-2.5 py-1 text-xs rounded-lg transition cursor-pointer font-medium ${
-                      walletType === 'DEMO'
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
-                    }`}
-                  >
-                    1-Click Demo
-                  </button>
-                  <button
-                    onClick={() => setWalletType('NWC')}
-                    className={`px-2.5 py-1 text-xs rounded-lg transition cursor-pointer font-medium ${
-                      walletType === 'NWC'
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
-                    }`}
-                  >
-                    NWC Protocol
-                  </button>
-                </div>
+                <span className="text-[10px] text-amber-400 font-mono">
+                  {walletType === 'DEMO' ? '⚡ Built-in Demo' : walletType === 'NWC' ? '🔌 NWC Remote' : '🦊 Alby / NIP-07'}
+                </span>
               </div>
 
+              {/* 3-Way Mode Switcher Tabs */}
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800">
+                <button
+                  onClick={() => setWalletType('DEMO')}
+                  className={`py-2 px-2 text-xs rounded-lg transition cursor-pointer font-bold flex flex-col items-center gap-0.5 ${
+                    walletType === 'DEMO'
+                      ? 'bg-amber-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  <span className="flex items-center gap-1">
+                    <Zap className="w-3.5 h-3.5 fill-current" />
+                    <span>Demo</span>
+                  </span>
+                  <span className="text-[9px] font-normal opacity-80">100k sats</span>
+                </button>
+
+                <button
+                  onClick={() => setWalletType('NWC')}
+                  className={`py-2 px-2 text-xs rounded-lg transition cursor-pointer font-bold flex flex-col items-center gap-0.5 ${
+                    walletType === 'NWC'
+                      ? 'bg-amber-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  <span className="flex items-center gap-1">
+                    <Radio className="w-3.5 h-3.5" />
+                    <span>NWC</span>
+                  </span>
+                  <span className="text-[9px] font-normal opacity-80">Signet/Mainnet</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setWalletType('NIP07');
+                    if (isNip07Available) connectNip07();
+                  }}
+                  className={`py-2 px-2 text-xs rounded-lg transition cursor-pointer font-bold flex flex-col items-center gap-0.5 ${
+                    walletType === 'NIP07'
+                      ? 'bg-amber-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  <span className="flex items-center gap-1">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Extension</span>
+                  </span>
+                  <span className="text-[9px] font-normal opacity-80">Alby / nos2x</span>
+                </button>
+              </div>
+
+              {/* DEMO WALLET VIEW */}
+              {walletType === 'DEMO' && (
+                <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-amber-300 flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 fill-amber-400" />
+                      1-Click Built-in Demo Wallet
+                    </span>
+                    <button
+                      onClick={resetDemoWallet}
+                      className="text-[11px] text-amber-400 hover:underline flex items-center gap-1 font-mono font-medium cursor-pointer"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      Reset to 100k
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Pre-funded with <strong>100,000 sats</strong> for frictionless judge testing. Generates authentic BOLT11 invoices, local sat balances, and cryptographic SHA-256 settlement preimages.
+                  </p>
+                  <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between font-mono">
+                    <span>Active Test Balance:</span>
+                    <span className="font-bold text-emerald-400">{balanceSats.toLocaleString()} sats</span>
+                  </div>
+                </div>
+              )}
+
+              {/* NWC WALLET VIEW */}
               {walletType === 'NWC' && (
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-3 animate-in fade-in">
                   <p className="text-xs text-slate-400 leading-relaxed">
                     Connect your self-custodial Alby Hub, LNbits, Mutiny, or Umbrel node via Nostr Wallet Connect (NIP-47).
                   </p>
@@ -342,6 +401,53 @@ export const LightningWalletDrawer: React.FC = () => {
                       {nwcStatus && (
                         <p className="text-xs text-amber-400 text-center">{nwcStatus}</p>
                       )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* BROWSER EXTENSION VIEW */}
+              {walletType === 'NIP07' && (
+                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-purple-300 flex items-center gap-1.5">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Browser Extension (NIP-07 / WebLN)
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono ${
+                      isNip07Available ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      {isNip07Available ? 'Extension Active' : 'Not Detected'}
+                    </span>
+                  </div>
+
+                  {isNip07Available ? (
+                    <div className="space-y-2.5">
+                      <p className="text-xs text-slate-300">
+                        Compatible browser extension detected (Alby / nos2x). Click below to authorize Nostr identity and WebLN payments.
+                      </p>
+                      <button
+                        onClick={connectNip07}
+                        className="w-full py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-purple-600/20"
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Authorize Extension (Alby / nos2x)</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        No Nostr / WebLN extension detected in this browser window. You can install the Alby extension for Chrome/Brave/Firefox or continue seamlessly using our <strong>1-Click Demo Wallet</strong> or <strong>NWC Protocol</strong>.
+                      </p>
+                      <a
+                        href="https://getalby.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs transition flex items-center justify-center gap-1.5"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Get Alby Extension (getalby.com)</span>
+                      </a>
                     </div>
                   )}
                 </div>

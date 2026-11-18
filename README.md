@@ -9,7 +9,7 @@
 
 ## 🌟 Live Links & Core Features
 
-- 🌐 **Live Vercel Production dApp:** **[https://ajobook-blue.vercel.app](https://ajobook-blue.vercel.app)** *(also accessible at [https://ajobook.vercel.app](https://ajobook.vercel.app))*
+- 🌐 **Live Vercel Production dApp:** **[https://ajobook.vercel.app](https://ajobook.vercel.app)**
 - 💻 **GitHub Repository:** **[https://github.com/JimmyOgb/AjoBook](https://github.com/JimmyOgb/AjoBook)**
 - ⚡ **Pure Bitcoin & Lightning Settlement:** Invoices generated in Satoshis (BOLT11) with instant sub-second settlement.
 - 🌍 **West African Currency Toggle:** Switch effortlessly between **SATS**, **Nigerian Naira (₦)**, and **Franc CFA (XOF)**.

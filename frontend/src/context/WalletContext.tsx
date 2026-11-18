@@ -153,6 +153,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (pk) {
           setPubkeyHex(pk);
           setNpub(nip19.npubEncode(pk));
+          setWalletType('NIP07');
         }
       } catch (e) {
         console.error('NIP-07 connect failed:', e);
@@ -271,6 +272,14 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         const bal = await nwcClient.getBalance();
         setNwcBalance(bal.balance || 0);
       } catch {}
+    } else if (walletType === 'NIP07' && typeof window !== 'undefined' && (window as any).webln) {
+      try {
+        await (window as any).webln.enable();
+        const res = await (window as any).webln.sendPayment(bolt11);
+        preimage = res.preimage || Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+      } catch (err: any) {
+        throw new Error(err.message || 'WebLN payment failed');
+      }
     } else {
       // Demo Wallet mode: deduct local balance and generate valid preimage
       if (demoBalance < amountSats) {
