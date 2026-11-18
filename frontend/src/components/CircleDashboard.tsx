@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { QRCodeSvg } from './QRCodeSvg';
-import { AnkaraPattern } from './AnkaraPattern';
 import { LightningSettlementDrawer } from './LightningSettlementDrawer';
 import { AIStewardPanel } from './AIStewardPanel';
 import { roscaService } from '../services/roscaService';
@@ -167,7 +166,7 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
           className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition w-fit cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to All Exercise Books</span>
+          <span>Back to All Circles</span>
         </button>
 
         <div className="flex items-center gap-2.5 flex-wrap">
@@ -181,33 +180,31 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
         </div>
       </div>
 
-      {/* Circle Exercise Book Header Card */}
-      <div className="p-6 rounded-3xl ajo-hero-frame border border-slate-800 shadow-2xl relative overflow-hidden border-l-4 border-l-rose-500/70 backdrop-blur-md">
-        <AnkaraPattern className="text-emerald-400 opacity-[0.035]" />
-        
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      {/* Circle Header Card */}
+      <div className="p-6 rounded-3xl bg-gradient-to-br from-[#121824] via-[#161F30] to-[#0D131F] border border-slate-800 shadow-2xl relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border whitespace-nowrap ${
-                circle?.status === 'OPEN' ? 'bg-amber-500/10 text-amber-400 border-amber-500/25' :
-                circle?.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' :
-                'bg-blue-500/10 text-blue-400 border-blue-500/25'
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border ${
+                circle?.status === 'OPEN' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                circle?.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                'bg-blue-500/10 text-blue-400 border-blue-500/20'
               }`}>
-                {circle?.status === 'OPEN' ? 'Book Forming (Open for Joins)' : circle?.status === 'ACTIVE' ? `Turn ${currentTurn} of ${totalMembers}` : 'Completed'}
+                {circle?.status === 'OPEN' ? 'Circle Forming (Open for Joins)' : circle?.status === 'ACTIVE' ? `Turn ${currentTurn} of ${totalMembers}` : 'Completed'}
               </span>
-              <span className="text-xs text-slate-300 font-mono">
-                Host: <span className="font-serif italic text-amber-300 font-semibold">{circle?.hostName}</span>
+              <span className="text-xs text-slate-400 font-mono">
+                Host: <span className="text-white font-medium">{circle?.hostName}</span>
               </span>
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-emerald-400" />
+              <BookOpen className="w-6 h-6 text-blue-400" />
               <span>{circle?.name}</span>
             </h1>
 
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 font-mono">
               <span>
-                Ledger ID: <span className="text-emerald-400 font-mono">{circle?.id}</span>
+                Ledger ID: <span className="text-blue-400 font-mono">{circle?.id}</span>
               </span>
               <span className="inline-flex items-center gap-1 text-amber-300 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
                 <Zap className="w-3 h-3 fill-amber-400" />
@@ -380,26 +377,24 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
         </div>
       )}
 
-      {/* ─── THE EXERCISE BOOK LEDGER TABLE ─── */}
-      <div className="bg-[#0e1726]/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl border-l-4 border-l-rose-500/70 backdrop-blur-md relative">
-        <AnkaraPattern className="text-emerald-400 opacity-[0.02]" />
-
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between relative z-10">
+      {/* ─── MEMBER TURN SCHEDULE & LEDGER TABLE ─── */}
+      <div className="bg-[#121824] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+        <div className="p-5 border-b border-slate-800 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-emerald-400" />
-              <span>Exercise Book Member Ledger</span>
+              <BookOpen className="w-4 h-4 text-blue-400" />
+              <span>Member Turn Schedule &amp; Ledger</span>
             </h3>
             <p className="text-xs text-slate-400">Order of turns, deposit coverage, and current payment status</p>
           </div>
-          <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-            {totalMembers} {totalMembers === 1 ? 'member' : 'members'} signed in book
+          <span className="text-xs font-mono text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20">
+            {totalMembers} {totalMembers === 1 ? 'member' : 'members'} joined
           </span>
         </div>
 
-        <div className="overflow-x-auto relative z-10">
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-900/90 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
+            <thead className="bg-slate-900/80 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
               <tr>
                 <th className="px-5 py-3 font-semibold">Turn #</th>
                 <th className="px-5 py-3 font-semibold">Member Name &amp; Pubkey</th>
@@ -408,19 +403,19 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
                 <th className="px-5 py-3 font-semibold text-right">Payout Turn Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-blue-900/30">
+            <tbody className="divide-y divide-slate-800/80">
               {circle?.members?.map((m: any) => {
                 const isCurrentCollector = circle?.status === 'ACTIVE' && m.slot === currentTurn;
                 const isPastCollector = m.slot < currentTurn;
                 const isPaid = m.paidCurrent || circle?.currentTurnPaid?.includes(m.slot);
 
                 return (
-                  <tr key={m.slot} className="hover:bg-slate-900/50 transition">
+                  <tr key={m.slot} className="hover:bg-slate-900/40 transition">
                     <td className="px-5 py-3.5 font-bold font-mono text-white">
                       Turn #{m.slot}
                     </td>
                     <td className="px-5 py-3.5">
-                      <div className="font-serif italic font-semibold text-amber-200 text-sm tracking-wide">{m.name}</div>
+                      <div className="font-bold text-white text-xs">{m.name}</div>
                       <span className="font-mono text-[10px] text-slate-400">
                         {m.npub ? `${m.npub.substring(0, 10)}...${m.npub.substring(m.npub.length - 6)}` : 'Nostr Verified'}
                       </span>
@@ -433,18 +428,24 @@ export const CircleDashboard: React.FC<CircleDashboardProps> = ({
                     </td>
                     <td className="px-5 py-3.5">
                       {circle?.status === 'OPEN' ? (
-                        <span className="text-slate-500 italic font-serif">Book forming</span>
+                        <span className="text-slate-500 italic">Circle forming</span>
                       ) : isPaid ? (
-                        <span className="stamp-paid">PAID</span>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold">
+                          <CheckCircle2 className="w-3 h-3" /> Paid
+                        </span>
                       ) : (
-                        <span className="stamp-pending">PENDING</span>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[11px] font-semibold">
+                          Pending
+                        </span>
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-right font-semibold">
                       {circle?.status === 'COMPLETED' ? (
                         <span className="text-blue-400 font-mono text-xs">All Completed</span>
                       ) : isCurrentCollector ? (
-                        <span className="stamp-collecting">COLLECTING NOW</span>
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold uppercase animate-pulse">
+                          Collecting Now
+                        </span>
                       ) : isPastCollector ? (
                         <span className="text-slate-500 text-[11px] font-mono">Disbursed</span>
                       ) : (

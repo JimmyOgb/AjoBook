@@ -9,7 +9,6 @@ import {
   Send
 } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
-import { AnkaraPattern } from './AnkaraPattern';
 
 interface AIStewardPanelProps {
   circle: any;
@@ -73,9 +72,7 @@ export const AIStewardPanel: React.FC<AIStewardPanelProps> = ({ circle }) => {
   };
 
   return (
-    <div className="bg-[#0e1726]/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl border-l-4 border-l-purple-500/70 backdrop-blur-md relative p-5">
-      <AnkaraPattern className="text-purple-400 opacity-[0.02]" />
-
+    <div className="bg-[#121824] border border-slate-800 rounded-2xl overflow-hidden shadow-xl relative p-5">
       {/* Background subtle glow */}
       <div className="absolute top-0 right-0 w-48 h-48 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
 
