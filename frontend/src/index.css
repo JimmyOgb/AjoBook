@@ -4,49 +4,21 @@
 
 @layer base {
   body {
-    @apply bg-[#0B0E14] text-slate-100 antialiased min-h-screen selection:bg-emerald-600 selection:text-white;
+    @apply bg-[#FAF8F5] text-stone-900 antialiased min-h-screen selection:bg-emerald-700 selection:text-white font-sans;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
 
-/* African Ajo Exercise Book Wallpaper Layering */
-.ajo-page-backdrop {
-  background-color: #070C16;
-  background-image: 
-    linear-gradient(135deg, rgba(11, 18, 32, 0.92) 0%, rgba(11, 24, 38, 0.84) 50%, rgba(6, 78, 59, 0.88) 100%),
-    url('/ajo-african-bg.svg');
-  background-size: cover;
-  background-position: center top;
-  background-attachment: fixed;
-  background-repeat: no-repeat;
+/* Warm Light African Paper Motif & Hero Frame */
+.ajo-warm-hero {
+  background-color: #FFFFFF;
+  border: 1px solid #E7E5E4;
 }
 
-/* Hero Banner Artwork Frame */
-.ajo-hero-frame {
-  background-image: 
-    linear-gradient(135deg, rgba(12, 25, 44, 0.88) 0%, rgba(15, 33, 54, 0.80) 50%, rgba(6, 78, 59, 0.82) 100%),
-    url('/ajo-african-bg.svg');
-  background-size: cover;
-  background-position: center 40%;
-}
-
-/* Custom glow and glass effects */
-.glow-border {
-  box-shadow: 0 0 15px -3px rgba(0, 82, 255, 0.25);
-}
-
-.glow-green {
-  box-shadow: 0 0 15px -3px rgba(16, 185, 129, 0.25);
-}
-
-.glow-text {
-  text-shadow: 0 0 10px rgba(0, 82, 255, 0.5);
-}
-
-.glass-card {
-  background: rgba(14, 22, 36, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.paper-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E7E5E4;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
 }
 
 /* Ink Rubber Stamps for Ajo Exercise Book Ledger */
@@ -57,12 +29,12 @@
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #6ee7b7;
-  border: 2px solid #34d399;
+  color: #065F46;
+  border: 2px solid #059669;
   border-radius: 4px;
   transform: rotate(-2deg);
-  background: rgba(6, 78, 59, 0.65);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  background: #ECFDF5;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -73,12 +45,12 @@
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #fda4af;
-  border: 2px solid #f43f5e;
+  color: #9F1239;
+  border: 2px solid #E11D48;
   border-radius: 4px;
   transform: rotate(2deg);
-  background: rgba(136, 19, 55, 0.65);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  background: #FFF1F2;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -89,12 +61,12 @@
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #fde68a;
-  border: 2px dashed #f59e0b;
+  color: #92400E;
+  border: 2px dashed #D97706;
   border-radius: 4px;
   transform: rotate(-1deg);
-  background: rgba(120, 53, 15, 0.45);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  background: #FFFBEB;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -105,11 +77,11 @@
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #fef08a;
-  border: 2px solid #facc15;
+  color: #854D0E;
+  border: 2px solid #CA8A04;
   border-radius: 6px;
   transform: rotate(1deg);
-  background: rgba(234, 179, 8, 0.25);
-  box-shadow: 0 2px 6px rgba(234, 179, 8, 0.2);
+  background: #FEFCE8;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }

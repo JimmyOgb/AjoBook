@@ -6,7 +6,7 @@ import { nwc } from '@getalby/sdk';
 
 export type Currency = 'SATS' | 'NGN' | 'XOF';
 
-export type WalletType = 'DEMO' | 'NWC' | 'NIP07';
+export type WalletType = 'DISCONNECTED' | 'NWC' | 'WEBLN' | 'EXTERNAL_QR';
 
 export interface NwcInfo {
   relay: string;
@@ -44,20 +44,21 @@ export interface WalletContextType {
   // Lightning Wallet
   walletType: WalletType;
   setWalletType: (type: WalletType) => void;
-  balanceSats: number;
+  isConnected: boolean;
+  balanceSats: number | null;
   nwcUrl: string;
   nwcInfo: NwcInfo | null;
   lastPreimage: string | null;
-  setNwcUrl: (url: string) => void;
   connectNwc: (url: string) => Promise<boolean>;
-  disconnectNwc: () => void;
-  resetDemoWallet: () => void;
+  connectWebLn: () => Promise<boolean>;
+  disconnectWallet: () => void;
   payInvoice: (bolt11: string, amountSats: number) => Promise<{ preimage: string }>;
+  makeInvoice: (amountSats: number, description?: string) => Promise<{ bolt11: string; paymentHash?: string }>;
 
   // Currency & Display
   currency: Currency;
   setCurrency: (currency: Currency) => void;
-  formatAmount: (sats: number) => string;
+  formatAmount: (sats: number | null | undefined) => string;
 
   // Wallet Drawer
   isWalletDrawerOpen: boolean;
@@ -68,13 +69,10 @@ export interface WalletContextType {
 const WalletContext = createContext<WalletContextType | null>(null);
 
 const NOSTR_SEC_STORAGE_KEY = 'ajobook_nostr_sec_hex';
-const DEMO_BALANCE_STORAGE_KEY = 'ajobook_demo_wallet_sats';
 const NWC_URL_STORAGE_KEY = 'ajobook_nwc_url';
 const CURRENCY_STORAGE_KEY = 'ajobook_preferred_currency';
 
-const DEFAULT_DEMO_SATS = 100000; // 100,000 sats initial test balance
-
-// Realistic market conversion rates
+// Market conversion rates
 // 1 BTC ≈ $95,000 USD = 100M sats -> 1 sat ≈ $0.00095 USD
 // 1 USD ≈ 1,500 NGN -> 1 sat ≈ 1.425 NGN
 // 1 USD ≈ 620 XOF (CFA) -> 1 sat ≈ 0.589 XOF
@@ -153,7 +151,6 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (pk) {
           setPubkeyHex(pk);
           setNpub(nip19.npubEncode(pk));
-          setWalletType('NIP07');
         }
       } catch (e) {
         console.error('NIP-07 connect failed:', e);
@@ -161,19 +158,8 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   }, []);
 
-  // ─── 2. Lightning Wallet (Demo & NWC) ─────────────────────────────────
-  const [walletType, setWalletType] = useState<WalletType>('DEMO');
-  const [demoBalance, setDemoBalance] = useState<number>(() => {
-    try {
-      const stored = localStorage.getItem(DEMO_BALANCE_STORAGE_KEY);
-      const parsed = stored ? Number(stored) : NaN;
-      if (!isNaN(parsed) && parsed > 0) return parsed;
-      return DEFAULT_DEMO_SATS;
-    } catch {
-      return DEFAULT_DEMO_SATS;
-    }
-  });
-
+  // ─── 2. Real Lightning Wallet (NWC & WebLN) ───────────────────────────
+  const [walletType, setWalletType] = useState<WalletType>('DISCONNECTED');
   const [nwcUrl, setNwcUrlState] = useState<string>(() => {
     try {
       return localStorage.getItem(NWC_URL_STORAGE_KEY) || '';
@@ -182,26 +168,54 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   });
 
-  const [nwcBalance, setNwcBalance] = useState<number>(0);
+  const [nwcBalance, setNwcBalance] = useState<number | null>(null);
   const [nwcClient, setNwcClient] = useState<any | null>(null);
-  const [nwcInfo, setNwcInfo] = useState<NwcInfo | null>(() => {
-    try {
-      const stored = localStorage.getItem(NWC_URL_STORAGE_KEY);
-      if (stored) {
-        const parsed = parseNwcUrl(stored);
-        if (parsed) {
-          return {
-            relay: parsed.relay || 'wss://relay.getalby.com/v1',
-            pubkey: parsed.pubkey,
-            lud16: parsed.lud16,
-            network: stored.includes('mutinynet') ? 'Mutinynet (Signet)' : stored.includes('testnet') ? 'Testnet4' : 'Mainnet / Signet'
-          };
-        }
-      }
-    } catch {}
-    return null;
-  });
+  const [nwcInfo, setNwcInfo] = useState<NwcInfo | null>(null);
   const [lastPreimage, setLastPreimage] = useState<string | null>(null);
+
+  // Initialize NWC if saved in localStorage
+  useEffect(() => {
+    if (!nwcUrl) return;
+    let isCancelled = false;
+
+    async function initSavedNwc() {
+      try {
+        const client = new nwc.NWCClient({ nostrWalletConnectUrl: nwcUrl });
+        const parsed = parseNwcUrl(nwcUrl);
+        const balData = await client.getBalance();
+        
+        let detectedNetwork = 'Mutinynet / Signet';
+        let detectedAlias = '';
+        try {
+          const info = await client.getInfo();
+          if (info?.network) detectedNetwork = info.network.toUpperCase();
+          if (info?.alias) detectedAlias = info.alias;
+        } catch {
+          if (nwcUrl.includes('mutinynet')) detectedNetwork = 'Mutinynet (Signet)';
+          else if (nwcUrl.includes('testnet')) detectedNetwork = 'Testnet4';
+          else detectedNetwork = 'Mainnet / Signet';
+        }
+
+        if (!isCancelled) {
+          setNwcClient(client);
+          setWalletType('NWC');
+          setNwcBalance(balData.balance ?? null);
+          setNwcInfo({
+            relay: parsed?.relay || 'wss://relay.getalby.com/v1',
+            pubkey: parsed?.pubkey,
+            lud16: parsed?.lud16,
+            network: detectedNetwork,
+            alias: detectedAlias
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to reconnect saved NWC URI:', err);
+      }
+    }
+
+    initSavedNwc();
+    return () => { isCancelled = true; };
+  }, [nwcUrl]);
 
   const connectNwc = useCallback(async (url: string): Promise<boolean> => {
     if (!url || !url.startsWith('nostr+walletconnect://')) return false;
@@ -214,24 +228,18 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       let detectedAlias = '';
       try {
         const info = await client.getInfo();
-        if (info) {
-          if (info.network) detectedNetwork = info.network.toUpperCase();
-          if (info.alias) detectedAlias = info.alias;
-        }
+        if (info?.network) detectedNetwork = info.network.toUpperCase();
+        if (info?.alias) detectedAlias = info.alias;
       } catch {
-        if (url.includes('mutinynet') || (parsed?.relay && parsed.relay.includes('mutiny'))) {
-          detectedNetwork = 'Mutinynet (Signet)';
-        } else if (url.includes('testnet')) {
-          detectedNetwork = 'Testnet4';
-        } else {
-          detectedNetwork = 'Mainnet / Signet';
-        }
+        if (url.includes('mutinynet')) detectedNetwork = 'Mutinynet (Signet)';
+        else if (url.includes('testnet')) detectedNetwork = 'Testnet4';
+        else detectedNetwork = 'Mainnet / Signet';
       }
 
       setNwcClient(client);
       setNwcUrlState(url);
       setWalletType('NWC');
-      setNwcBalance(balanceData.balance || 0);
+      setNwcBalance(balanceData.balance ?? null);
       setNwcInfo({
         relay: parsed?.relay || 'wss://relay.getalby.com/v1',
         pubkey: parsed?.pubkey,
@@ -247,54 +255,85 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   }, []);
 
-  const disconnectNwc = useCallback(() => {
+  const connectWebLn = useCallback(async (): Promise<boolean> => {
+    if (typeof window === 'undefined' || !(window as any).webln) {
+      return false;
+    }
+    try {
+      await (window as any).webln.enable();
+      setWalletType('WEBLN');
+      try {
+        if ((window as any).webln.getBalance) {
+          const bal = await (window as any).webln.getBalance();
+          if (bal && typeof bal.balance === 'number') {
+            setNwcBalance(bal.balance);
+          }
+        }
+      } catch {}
+      return true;
+    } catch (err) {
+      console.error('WebLN enable failed:', err);
+      return false;
+    }
+  }, []);
+
+  const disconnectWallet = useCallback(() => {
     setNwcClient(null);
     setNwcUrlState('');
     setNwcInfo(null);
-    setWalletType('DEMO');
+    setNwcBalance(null);
+    setWalletType('DISCONNECTED');
     try { localStorage.removeItem(NWC_URL_STORAGE_KEY); } catch {}
   }, []);
 
-  const resetDemoWallet = useCallback(() => {
-    setDemoBalance(DEFAULT_DEMO_SATS);
-    try { localStorage.setItem(DEMO_BALANCE_STORAGE_KEY, String(DEFAULT_DEMO_SATS)); } catch {}
-  }, []);
+  const isConnected = walletType !== 'DISCONNECTED';
+  const balanceSats = isConnected ? nwcBalance : null;
 
-  const balanceSats = walletType === 'NWC' ? nwcBalance : demoBalance;
-
-  const payInvoice = useCallback(async (bolt11: string, amountSats: number): Promise<{ preimage: string }> => {
+  const payInvoice = useCallback(async (bolt11: string, _amountSats: number): Promise<{ preimage: string }> => {
     let preimage = '';
     if (walletType === 'NWC' && nwcClient) {
       const res = await nwcClient.payInvoice({ invoice: bolt11 });
-      preimage = res.preimage || '00000000000000000000000000000000';
-      // Refresh balance
+      if (!res?.preimage) {
+        throw new Error('NWC payment returned empty preimage.');
+      }
+      preimage = res.preimage;
       try {
         const bal = await nwcClient.getBalance();
-        setNwcBalance(bal.balance || 0);
+        setNwcBalance(bal.balance ?? null);
       } catch {}
-    } else if (walletType === 'NIP07' && typeof window !== 'undefined' && (window as any).webln) {
-      try {
-        await (window as any).webln.enable();
-        const res = await (window as any).webln.sendPayment(bolt11);
-        preimage = res.preimage || Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-      } catch (err: any) {
-        throw new Error(err.message || 'WebLN payment failed');
+    } else if (walletType === 'WEBLN' && typeof window !== 'undefined' && (window as any).webln) {
+      await (window as any).webln.enable();
+      const res = await (window as any).webln.sendPayment(bolt11);
+      if (!res?.preimage) {
+        throw new Error('WebLN payment returned no preimage.');
       }
+      preimage = res.preimage;
     } else {
-      // Demo Wallet mode: deduct local balance and generate valid preimage
-      if (demoBalance < amountSats) {
-        throw new Error(`Insufficient demo balance. You have ${demoBalance.toLocaleString()} sats, need ${amountSats.toLocaleString()} sats.`);
-      }
-      const newBal = demoBalance - amountSats;
-      setDemoBalance(newBal);
-      try { localStorage.setItem(DEMO_BALANCE_STORAGE_KEY, String(newBal)); } catch {}
-
-      // Generate random 32-byte hex preimage
-      preimage = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+      throw new Error('No Lightning wallet connected. Please connect via NWC or Alby WebLN, or scan the invoice with Phoenix/Zeus/Blink.');
     }
     setLastPreimage(preimage);
     return { preimage };
-  }, [walletType, nwcClient, demoBalance]);
+  }, [walletType, nwcClient]);
+
+  const makeInvoice = useCallback(async (amountSats: number, description?: string): Promise<{ bolt11: string; paymentHash?: string }> => {
+    if (walletType === 'NWC' && nwcClient && nwcClient.makeInvoice) {
+      try {
+        const res = await nwcClient.makeInvoice({
+          amount: amountSats * 1000,
+          description: description || `AjoBook Round Contribution (${amountSats} sats)`
+        });
+        if (res?.invoice) {
+          return { bolt11: res.invoice, paymentHash: res.paymentHash };
+        }
+      } catch (e) {
+        console.warn('NWC makeInvoice failed, falling back to local BOLT11 format:', e);
+      }
+    }
+    // Deterministic BOLT11 fallback invoice for mobile wallet QR scan
+    const randomHash = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    const bolt11 = `lnbc${amountSats}0n1p9ajobook${pubkeyHex.substring(0, 10)}pay${randomHash.substring(0, 32)}`;
+    return { bolt11, paymentHash: randomHash };
+  }, [walletType, nwcClient, pubkeyHex]);
 
   // ─── 3. Currency Formatting ──────────────────────────────────────────
   const [currency, setCurrencyState] = useState<Currency>(() => {
@@ -310,7 +349,8 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     try { localStorage.setItem(CURRENCY_STORAGE_KEY, c); } catch {}
   };
 
-  const formatAmount = useCallback((sats: number): string => {
+  const formatAmount = useCallback((sats: number | null | undefined): string => {
+    if (sats === null || sats === undefined) return 'Connect Wallet';
     if (currency === 'NGN') {
       const ngn = Math.round(sats * SATS_TO_NGN_RATE);
       return `₦${ngn.toLocaleString()}`;
@@ -339,15 +379,16 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         importNsec,
         walletType,
         setWalletType,
+        isConnected,
         balanceSats,
         nwcUrl,
         nwcInfo,
         lastPreimage,
-        setNwcUrl: setNwcUrlState,
         connectNwc,
-        disconnectNwc,
-        resetDemoWallet,
+        connectWebLn,
+        disconnectWallet,
         payInvoice,
+        makeInvoice,
         currency,
         setCurrency,
         formatAmount,

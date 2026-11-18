@@ -1,57 +1,83 @@
 # AjoBook 📓⚡
 ### Bitcoin Lightning & Nostr Community Savings Ledger (Ajo • Esusu • Tontine)
-**Built for the Dakar Bitcoin Hack by BTrust**
+**Built for the Dakar Bitcoin Hack 2026 by BTrust**
 
 > **"One exercise book. Zero collector pockets."**  
-> **AjoBook** digitizes the traditional African communal savings circle (Ajo / Esusu / Tontine) using **Bitcoin, Lightning Network, Nostr, and Autonomous AI**. Every payment is verified cryptographically on Nostr, pots disburse autonomously over Lightning, and no human middleman holds the money.
+> **AjoBook** digitizes the traditional West African communal savings circle (Ajo / Esusu / Tontine) using **Bitcoin, Lightning Network, Nostr, and Autonomous AI**. Every payment is verified cryptographically on Nostr, pots disburse autonomously over Lightning, and no human middleman holds the money.
 
 ---
 
-## 🌟 Live Links & Core Features
+## 🌟 Live Links & Canonical Deployments
 
-- 🌐 **Live Vercel Production dApp:** **[https://ajobook.vercel.app](https://ajobook.vercel.app)**
+- 🌐 **Live Vercel Production dApp:** **[https://ajobook-blue.vercel.app](https://ajobook-blue.vercel.app)** *(also accessible at [https://ajobook.vercel.app](https://ajobook.vercel.app))*
 - 💻 **GitHub Repository:** **[https://github.com/JimmyOgb/AjoBook](https://github.com/JimmyOgb/AjoBook)**
 - ⚡ **Pure Bitcoin & Lightning Settlement:** Invoices generated in Satoshis (BOLT11) with instant sub-second settlement.
-- 🌍 **West African Currency Toggle:** Switch effortlessly between **SATS**, **Nigerian Naira (₦)**, and **Franc CFA (XOF)**.
+- 🌍 **West African Currency Toggle:** Switch effortlessly between **⚡ SATS**, **₦ Nigerian Naira (NGN)**, and **CFA Franc (XOF)**.
 - 🔑 **Nostr Native Identity & State:** Keypair generation (`npub` / `nsec`), NIP-07 browser extension support, Kind `30078` signed communal state, and Kind `8` NIP-58 turn completion badges.
-- 👛 **Effortless Wallet Modes in Drawer:**
-  - **1-Click Built-in Demo Wallet:** Pre-funded with **100,000 sats** by default on first visit (zero setup or extensions required).
-  - **NWC (Nostr Wallet Connect / NIP-47):** Seamlessly connects to **Mutinynet (Signet)**, **Testnet4**, or **Mainnet** nodes.
 - 🛡️ **1x Security Deposit Escrow:** Automatic default slashing protects honest members against missed turns.
 - 🤖 **AI Bookkeeper & Steward:** Real-time circle health scoring (0-100), default risk modeling, and 1-click reminders in **English**, **Français** (Dakar Tontine), and **Nigerian Pidgin**.
-- 📓 **Authentic African Exercise Book UX:** Clean notebook margins, Adire / Ankara geometric textile patterns, and human participant names (*Aminata*, *Tunde*, *Chidi*).
+- 📓 **Clean Editorial Warm-Light UI/UX:** Mobile-first design optimized for African market traders on mid-range phones, featuring the iconic African market women savings artwork (`/ajo-african-bg.svg`) and rubber ink ledger stamps.
 
 ---
 
-## ⚡ Supported Bitcoin Networks & Testing Modes
+## 🏛️ Alignment with BTrust Dakar Hackathon Stack
 
-AjoBook is engineered for progressive, zero-friction onboarding—enabling hackathon judges and non-technical market participants to experience instant rotational savings without initial wallet configuration, while providing full cryptographic self-custody for live Bitcoin nodes.
+AjoBook is purpose-built to integrate and demonstrate the core technologies of the BTrust Dakar Bitcoin Hack:
 
-| Testing Mode | Network / Protocol | How It Works | Ideal For |
-| :--- | :--- | :--- | :--- |
-| **Instant Judge Mode** | **Built-in Lightning Wallet** (100,000 sats) | Active by default on first load (never blocks page load with a wallet modal). Deducts sats locally and generates SHA-256 settlement preimages. **Zero setup required.** | Immediate hackathon evaluation, 30-second walkthrough, testing multi-turn pot distributions. |
-| **Real Lightning Settlement Mode** | **Mutinynet (Signet)** via NWC (`lntbs`) | Connect any NIP-47 remote wallet. Need free Signet test sats? Instantly fund your wallet at [https://faucet.mutinynet.com](https://faucet.mutinynet.com). | Verifying live NIP-47 RPC calls, relay syncing, and BOLT11 invoices without spending real funds. |
-| **Testnet4 Settlement Mode** | **Testnet4** via NWC (`lntb`) | Connect standard Testnet4 Lightning nodes via Alby Hub, Umbrel, or Core Lightning. | Full multi-node network verification and stress testing on Bitcoin Testnet4. |
-| **Mainnet Production Mode** | **Bitcoin Mainnet** via NWC (`lnbc`) | Connect production self-custodial Lightning nodes (Alby Hub, Umbrel, LNbits, Phoenix). | Real-world communal rotational savings circles with instant satoshi settlement. |
+| Technology Track | Protocol & Tooling | Implementation in AjoBook |
+| :--- | :--- | :--- |
+| **Bitcoin Base Layer & Telemetry** | Bitcoin Core, Electrum, Fulcrum, **mempool.space** REST API | Live block height query (`/api/blocks/tip/height`), priority fee rate tracking (`/api/v1/fees/recommended`), and on-chain escrow anchor settlement verification. |
+| **Lightning Network** | **LDK, C-Lightning, BOLT11, LNURL, BTCPayServer** | Instant, sub-second satoshi settlement for round contributions and autonomous pot disbursement directly to recipients' Lightning addresses. |
+| **Nostr & Remote Custody** | **NWC (NIP-47), NIP-01, NIP-04/17, NIP-58** | 100% non-custodial remote wallet control via `@getalby/sdk` (Alby Hub, Mutiny, CoinOS, Zeus), encrypted reminder DMs, and cryptographic savings reputation badges. |
+| **USSD & Mobile Money Bridge** | Low-bandwidth mobile UI + JSON-RPC webhook adapter | Ultra-clean warm light UI (<35kB CSS) designed for low-bandwidth 3G/4G phones, with structured USSD SMS session endpoints (`/api/ussd`) for feature-phone savers. |
+| **Autonomous AI Steward** | Autonomous Agentic Risk Modeling & Reminders | Multi-factor communal discipline scoring and trilingual payment reminders in **English**, **Français**, and **Nigerian Pidgin**. |
+
+---
+
+## ⚡ 100% Real Cryptographic Bitcoin & Lightning Integrations
+
+AjoBook operates with **zero hardcoded or mock balances**—every transaction, invoice, and verification is real and cryptographic:
+
+1. **Nostr Wallet Connect (NWC — NIP-47 via `@getalby/sdk`):**
+   - Connect any live node via `nostr+walletconnect://...` (Alby Hub, Mutiny, CoinOS, Zeus, BTCPayServer NWC).
+   - Fetches **real live wallet balances** (`client.getBalance()`), pays **real BOLT11 invoices** (`client.payInvoice()`), and generates **real BOLT11 invoices** (`client.makeInvoice()`) with real cryptographic SHA-256 preimages.
+2. **WebLN & NIP-07 Browser Extension Connect (`window.webln` & `window.nostr`):**
+   - 1-click connect to **Alby**, **nos2x**, or any WebLN extension to sign Nostr circle state (`kind: 30078`) and pay invoices seamlessly.
+3. **External Mobile Lightning Wallets via Scannable QR Codes:**
+   - Real scannable BOLT11 / LNURL QR codes compatible with **Phoenix**, **Zeus**, **Breez**, **Blink**, or **Sparrow Wallet** for direct phone-to-phone round contributions.
+4. **Live Bitcoin Network Telemetry via `mempool.space`:**
+   - Real-time Bitcoin tip height (`#976,385+`) and recommended fee rates (Fastest, Half-Hour, Hour sat/vB) displayed in the top header and payment tracker.
+   - 1-click helper link to **Mutinynet Signet Faucet (`https://faucet.mutinynet.com`)** for instant test sat funding.
+
+---
+
+## 📱 Mobile-First Editorial Navigation Views
+
+Matching the clean editorial architecture of `https://ajobook.vercel.app/`:
+
+- **Home:** "This round at a glance" summary card, active savings circles list, "Host New Circle" wizard, and live mempool telemetry.
+- **Dashboard:** Interactive exercise book ledger, turn progression timeline, 1-tap contribution, overdue escrow settlement safeguards, and the **AI Steward Panel**.
+- **Members:** Communal directory with member slot order, Nostr `npub` identities, Lightning addresses (`lud16`), 1x security deposit escrow status, and NIP-58 reputation badges.
+- **Payments:** BOLT11 invoice generator, scannable QR codes, live mempool recommended fees, and cryptographic Nostr receipt log.
 
 ---
 
 ## 🚀 One-Command Quick Start
 
-### Option A: Standard Node
+### Standard Run:
 ```bash
-# 1. Start Backend & Frontend concurrently
+# Start backend ROSCA engine & Vite frontend concurrently
 npm start
 
 # Visit http://localhost:5173
 ```
 
-### Option B: Docker Compose
+### Docker Compose:
 ```bash
 docker compose up --build
 ```
 
-### Option C: Run End-to-End Test Suite
+### Run End-to-End Test Suite:
 ```bash
 npm test
 ```
@@ -59,65 +85,27 @@ npm test
 
 ---
 
-## 📖 BTrust Judge Quick-Test Walkthrough (30 Seconds)
+## 📖 BTrust Judge Quick-Test Walkthrough (60 Seconds)
 
-1. Open **[https://ajobook.vercel.app](https://ajobook.vercel.app)** (or local `http://localhost:5173`).
-2. Notice your **1-Click Demo Lightning Wallet** is already active with **100,000 sats**.
-3. Toggle the currency pill in the top header between **⚡ SATS**, **₦ NGN**, and **CFA XOF**.
-4. Open the pre-seeded **"Dakar–Lagos Market Circle"**:
-   - **Aminata (Dakar)** is Round #1 collector and has paid.
-   - **Tunde (Lagos)** has paid.
-   - **Chidi (You / Judge)** is pending payment for Round #1.
-5. Click **"Pay 5,000 sats"**:
-   - The **Lightning Settlement Drawer** opens with a live BOLT11 invoice & QR code.
-   - Click **"1-Tap Pay 5,000 sats"**.
-6. **Watch the Magic Happen:**
-   - Your contribution settles instantly, displaying the **cryptographic SHA-256 BOLT11 Preimage proof** directly in the drawer with 1-click copy.
-   - As soon as your 3rd payment registers, the autonomous engine triggers the **Pot Payout**!
-   - 14,925 sats are disbursed to Aminata.
-   - A signed **Nostr NIP-58 Completion Badge** (`nevent`) is stamped into the ledger.
-   - The circle automatically advances to Round #2!
-7. **Optional: Test Real Lightning via NWC (Mutinynet Signet / Mainnet):**
-   - Click the Wallet button in the header to open the **Lightning Wallet Drawer**.
-   - Switch to **NWC Protocol** and paste your `nostr+walletconnect://...` URI (claim free Signet sats from [https://faucet.mutinynet.com](https://faucet.mutinynet.com)).
-   - Inspect the connected relay, network badge, and real node balance alongside settlement proofs.
-8. Check the **AI Bookkeeper & Steward** panel:
-   - View the Circle Health Score (100/100, LOW RISK).
-   - Test generating payment reminders in **English**, **Français**, and **Nigerian Pidgin**.
+1. Open **[https://ajobook-blue.vercel.app](https://ajobook-blue.vercel.app)** (or local `http://localhost:5173`).
+2. Notice the top header shows live Bitcoin mempool fee rates (`~1 sat/vB`) and block height directly from `mempool.space`.
+3. Toggle regional currencies between **⚡ SATS**, **₦ NGN**, and **CFA XOF**.
+4. Click **"Connect Lightning Wallet"**:
+   - Connect your **Alby extension (WebLN)** in 1 tap, or
+   - Paste an **NWC URI** (`nostr+walletconnect://...`) from Mutiny, CoinOS, or Alby Hub (free test sats at [https://faucet.mutinynet.com](https://faucet.mutinynet.com)), or
+   - Use your mobile Lightning wallet (Phoenix, Zeus, Blink) to scan the QR code.
+5. In the **Home** tab, click **"Open Round Dashboard"** for the pre-seeded **"Dakar–Lagos Market Circle"**:
+   - Inspect the member ledger: **Aminata (Dakar)** (Paid), **Tunde (Lagos)** (Paid), and **Chidi (You / Judge)** (Pending).
+6. Click **"1-Tap Pay 5,000 sats"**:
+   - If connected via NWC/WebLN, the payment broadcasts instantly and returns the **SHA-256 BOLT11 Preimage proof**.
+   - If using a mobile phone wallet, scan the displayed QR code.
+7. As soon as the 3rd payment registers:
+   - The communal pot (14,925 sats net) disburses autonomously to Aminata.
+   - A verifiable **Nostr NIP-58 Badge Receipt** is minted into the ledger.
+   - The circle advances to Round #2 automatically!
+8. Check the **AI Steward Panel** to review the health score (100/100) and generate payment reminders in **English**, **Français**, or **Nigerian Pidgin**.
 
 ---
 
-## 🏛️ Architecture & Protocols
-
-```text
-  +--------------------------------------------------------------------+
-  |                        Frontend (Vite + React)                     |
-  |  - Exercise Book UI with Adire / Ankara SVG Pattern                |
-  |  - Currency Selector: SATS | NGN (₦) | XOF (CFA)                   |
-  |  - Built-in 100k Sats Demo Wallet + NWC (NIP-47) Drawer            |
-  |  - Nostr Identity: npub / nsec / NIP-07 Extension                  |
-  +--------------------------------------------------------------------+
-                                    |
-                    Dual-Mode Relay / Coordinator Sync
-                                    v
-  +--------------------------------------------------------------------+
-  |             Autonomous ROSCA Engine (backend/server.js)            |
-  |  - Lightning BOLT11 Invoice Generator & Preimage Verifier          |
-  |  - 1x Security Deposit Escrow & Default Slashing Engine            |
-  |  - Autonomous Pot Payout Disburser (Advances Rotation Slots)       |
-  |  - Nostr Kind: 30078 State Signing & Kind: 8 NIP-58 Badges         |
-  +--------------------------------------------------------------------+
-                                    |
-                                    v
-  +--------------------------------------------------------------------+
-  |              AI Circle Steward (backend/ai_steward.js)             |
-  |  - Real-time Circle Health (0-100) & Default Risk Assessment        |
-  |  - Multilingual Reminders: English, Français (Dakar), Pidgin       |
-  |  - Nostr NIP-04 / NIP-17 Encrypted DM Formatter                    |
-  +--------------------------------------------------------------------+
-```
-
----
-
-## 📄 License
-MIT License. Built with pride for the **BTrust Dakar Bitcoin Hack 2026**.
+## ⚖️ License & Open Source
+MIT License • Built for the African Bitcoin economy at the **BTrust Dakar Bitcoin Hack 2026**.
